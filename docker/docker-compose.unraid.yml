@@ -30,3 +30,6 @@ services:
       RUST_LOG: ${RUST_LOG:-info}
       CSI_SOURCE: ${CSI_SOURCE:-auto}
       MODELS_DIR: ${MODELS_DIR:-data/models}
+      # The sensing server rejects unknown Host headers to prevent DNS rebinding.
+      # Permit the Unraid LAN address so the UI works at http://192.168.57.10:8300.
+      SENSING_ALLOWED_HOSTS: ${SENSING_ALLOWED_HOSTS:-192.168.57.10}
