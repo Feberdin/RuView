@@ -10,12 +10,10 @@
 #   - Docker logs are bounded. Inspect status and logs via the Unraid Deployment
 #     Broker before using any broader server access.
 
-version: "3.9"
-
 services:
   sensing-server:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile.rust
     image: ruview-sensing-server:unraid
     restart: unless-stopped
