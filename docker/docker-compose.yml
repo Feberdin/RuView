@@ -1,3 +1,14 @@
+# Purpose: Unraid/Broker-friendly runtime stack for RuView's Rust sensing server.
+# Input: Docker builds from the repository root and optional CSI_SOURCE/MODELS_DIR
+#        environment values supplied by the operator.
+# Output: One long-running HTTP/WebSocket/UDP sensing service. The legacy Python
+#         WebSocket service is available only when the "python" profile is enabled.
+# Invariants/debugging:
+#   - Host ports must not collide with existing Unraid containers.
+#   - ESP32 CSI UDP stays on host port 5005 so sensor firmware does not need a
+#     deployment-specific target-port change.
+#   - Logs are bounded; inspect them through the Unraid Deployment Broker first.
+
 version: "3.9"
 
 services:
@@ -6,9 +17,17 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.rust
     image: ruvnet/wifi-densepose:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
-      - "3000:3000"   # REST API
-      - "3001:3001"   # WebSocket
+      # Host ports 3000 and 8080 are commonly used on Unraid. Use the 830x
+      # range so this stack can run beside Gotenberg, SecondBrain, and other apps.
+      - "8300:3000"   # REST API and bundled UI
+      - "8301:3001"   # WebSocket
       # ESP32 UDP. On Linux/macOS this works with multiple ESP32 nodes out of
       # the box. On Docker Desktop for Windows, multi-source UDP is collapsed
       # to one source IP at the WSL/Hyper-V boundary, so all-but-one node's
@@ -38,12 +57,20 @@ services:
     # Override with: command: ["--source", "esp32", "--tick-ms", "500"]
 
   python-sensing:
+    profiles:
+      - python
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
     image: ruvnet/wifi-densepose:python
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "8765:8765"   # WebSocket
-      - "8080:8080"   # UI
+      - "8302:8080"   # UI, if a Python UI server is enabled later
     environment:
       - PYTHONUNBUFFERED=1
