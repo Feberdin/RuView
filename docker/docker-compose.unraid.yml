@@ -27,8 +27,10 @@ services:
       - "8301:3001"   # WebSocket
       - "5005:5005/udp"   # ESP32 CSI UDP input
     environment:
-      RUST_LOG: ${RUST_LOG:-info}
-      CSI_SOURCE: ${CSI_SOURCE:-auto}
+      RUST_LOG: ${RUST_LOG:-info,sensing_server=debug}
+      # Use esp32 by default on Unraid so hardware debugging keeps the UDP
+      # receiver open instead of falling back to simulated data after startup.
+      CSI_SOURCE: ${CSI_SOURCE:-esp32}
       MODELS_DIR: ${MODELS_DIR:-data/models}
       # The sensing server rejects unknown Host headers to prevent DNS rebinding.
       # Permit the Unraid LAN address so the UI works at http://192.168.57.10:8300.
