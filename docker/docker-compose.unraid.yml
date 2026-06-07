@@ -1,0 +1,34 @@
+# Purpose: Unraid/Broker deployment for RuView's primary Rust sensing server.
+# Input: Docker builds from the repository root. Operators may override RUST_LOG,
+#        CSI_SOURCE, and MODELS_DIR through the Broker-approved environment flow.
+# Output: One long-running service exposing RuView HTTP/UI, WebSocket, and ESP32
+#         CSI UDP input on conflict-free host ports.
+# Invariants/debugging:
+#   - Host ports stay in the 830x range except ESP32 UDP 5005, which sensor
+#     firmware commonly targets directly.
+#   - No secrets are required by default; add future secrets as secret://NAME.
+#   - Docker logs are bounded. Inspect status and logs via the Unraid Deployment
+#     Broker before using any broader server access.
+
+version: "3.9"
+
+services:
+  sensing-server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.rust
+    image: ruview-sensing-server:unraid
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "8300:3000"   # REST API and bundled UI
+      - "8301:3001"   # WebSocket
+      - "5005:5005/udp"   # ESP32 CSI UDP input
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      CSI_SOURCE: ${CSI_SOURCE:-auto}
+      MODELS_DIR: ${MODELS_DIR:-data/models}
