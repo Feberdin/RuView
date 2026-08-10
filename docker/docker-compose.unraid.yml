@@ -35,3 +35,16 @@ services:
       # The sensing server rejects unknown Host headers to prevent DNS rebinding.
       # Permit the Unraid LAN address so the UI works at http://192.168.57.10:8300.
       SENSING_ALLOWED_HOSTS: ${SENSING_ALLOWED_HOSTS:-192.168.57.10}
+    networks:
+      - default
+
+# Why this exists: Docker's automatically selected private ranges can overlap
+# with the Unraid LAN/VLAN routes. The Broker-managed 10.200.0.0/16 pool keeps
+# RuView traffic isolated from the physical 192.168.0.0/16 networks.
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.200.13.0/24
+          gateway: 10.200.13.1
