@@ -14,7 +14,10 @@ services:
   sensing-server:
     build:
       context: .
-      dockerfile: docker/Dockerfile.rust
+      # Why this exists: Unraid runs only sensing-server. The dedicated image
+      # avoids compiling two unused Rust services and stays inside the Broker's
+      # bounded build window.
+      dockerfile: docker/Dockerfile.unraid
     image: ruview-sensing-server:unraid
     restart: unless-stopped
     # Why this exists: deploy_apply must distinguish "container process is up"

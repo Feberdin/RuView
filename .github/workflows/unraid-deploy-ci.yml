@@ -1,5 +1,5 @@
 # Purpose: Validate the exact RuView image and Compose file deployed to Unraid.
-# Input: Repository sources, docker/Dockerfile.rust, and docker/docker-compose.unraid.yml.
+# Input: Repository sources, docker/Dockerfile.unraid, and docker/docker-compose.unraid.yml.
 # Output: A reproducible Docker build plus HTTP readiness smoke-test evidence.
 # Invariants/debugging:
 #   - No registry credentials or deployment secrets are used.
@@ -14,7 +14,7 @@ on:
       - codex/ruview-docker-hardening
     paths:
       - .github/workflows/unraid-deploy-ci.yml
-      - docker/Dockerfile.rust
+      - docker/Dockerfile.unraid
       - docker/docker-compose.unraid.yml
       - docker/docker-entrypoint.sh
       - ui/**
@@ -27,7 +27,7 @@ on:
       - main
     paths:
       - .github/workflows/unraid-deploy-ci.yml
-      - docker/Dockerfile.rust
+      - docker/Dockerfile.unraid
       - docker/docker-compose.unraid.yml
       - docker/docker-entrypoint.sh
       - ui/**
@@ -64,7 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           docker build \
-            --file docker/Dockerfile.rust \
+            --file docker/Dockerfile.unraid \
             --tag "ruview-unraid-ci:${GITHUB_SHA}" \
             .
 
