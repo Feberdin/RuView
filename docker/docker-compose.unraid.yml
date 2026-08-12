@@ -1,5 +1,5 @@
 # Purpose: Unraid/Broker deployment for RuView's primary Rust sensing server.
-# Input: Docker builds from the repository root. Operators may override RUST_LOG,
+# Input: Immutable CI-published GHCR image. Operators may override RUST_LOG,
 #        CSI_SOURCE, and MODELS_DIR through the Broker-approved environment flow.
 # Output: One long-running service exposing RuView HTTP/UI, WebSocket, and ESP32
 #         CSI UDP input on conflict-free host ports.
@@ -12,13 +12,11 @@
 
 services:
   sensing-server:
-    build:
-      context: .
-      # Why this exists: Unraid runs only sensing-server. The dedicated image
-      # avoids compiling two unused Rust services and stays inside the Broker's
-      # bounded build window.
-      dockerfile: docker/Dockerfile.unraid
-    image: ruview-sensing-server:unraid
+    # Why this exists: a cold Rust build exceeds the Broker's bounded Unraid
+    # build window. CI builds and readiness-tests the exact candidate first;
+    # production consumes only its immutable registry digest.
+    image: ${RUVIEW_IMAGE:-ghcr.io/feberdin/ruview-unraid@sha256:4770fd5744f7e9cba4c10cd2b7b2643334262978f1addfb12732b5320a5ed6bc}
+    pull_policy: always
     restart: unless-stopped
     # Why this exists: deploy_apply must distinguish "container process is up"
     # from "the Axum API is actually ready". The endpoint is intentionally
