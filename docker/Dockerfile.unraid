@@ -60,8 +60,10 @@ RUN set -eu; \
         test -d "${directory}" || { echo "FATAL: missing UI directory ${directory}"; exit 1; }; \
     done
 
-ENV RUVIEW_API_TOKEN="" \
-    RUST_LOG="info" \
+# Why this exists: non-sensitive defaults belong in the image. Optional API
+# authentication is deliberately absent here and must be injected at runtime
+# through the Broker secret flow if the deployment enables it.
+ENV RUST_LOG="info" \
     CSI_SOURCE="auto" \
     MODELS_DIR="data/models"
 
