@@ -1,0 +1,143 @@
+/**
+ * Purpose: Prove that the mobile dependency tree uses the patched js-yaml
+ * release and that Istanbul can still load YAML coverage configuration.
+ * Input: A completed `npm ci --legacy-peer-deps` in ui/mobile plus npm registry
+ * audit metadata. Output: concise success messages or an actionable failure.
+ * Invariants: no credentials are read or printed; temporary files are removed;
+ * unrelated npm advisories are reported by npm but do not hide js-yaml status.
+ * Debugging: run `npm ls js-yaml --all` and then this file directly with Node.
+ */
+
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { loadNycConfig } = require('@istanbuljs/load-nyc-config');
+
+const EXPECTED_JS_YAML_VERSION = '4.3.1';
+
+/** Why this exists: the npm override must resolve every consumer to the exact
+ * reviewed security release, not merely add a second patched copy. */
+function verifyInstalledVersion() {
+  const packageMetadata = require('js-yaml/package.json');
+  assert.equal(
+    packageMetadata.version,
+    EXPECTED_JS_YAML_VERSION,
+    `Expected js-yaml ${EXPECTED_JS_YAML_VERSION}, found ${packageMetadata.version}. ` +
+      'Run npm install --package-lock-only --legacy-peer-deps and review the lockfile.',
+  );
+
+  const dependencyTree = spawnSync(
+    'npm',
+    ['ls', 'js-yaml', '--all', '--json'],
+    {
+      cwd: path.resolve(__dirname, '..'),
+      encoding: 'utf8',
+      shell: false,
+    },
+  );
+  if (dependencyTree.status !== 0 || !dependencyTree.stdout) {
+    throw new Error(
+      `npm could not resolve the complete js-yaml tree (exit ${dependencyTree.status ?? 'unknown'}). ` +
+        `stderr: ${dependencyTree.stderr.trim() || 'empty'}`,
+    );
+  }
+
+  const resolvedVersions = new Set();
+  const visit = (node) => {
+    const jsYamlNode = node.dependencies?.['js-yaml'];
+    if (jsYamlNode?.version) {
+      resolvedVersions.add(jsYamlNode.version);
+    }
+    for (const dependency of Object.values(node.dependencies ?? {})) {
+      visit(dependency);
+    }
+  };
+  visit(JSON.parse(dependencyTree.stdout));
+
+  assert.deepEqual(
+    [...resolvedVersions],
+    [EXPECTED_JS_YAML_VERSION],
+    `Expected every js-yaml consumer to resolve to ${EXPECTED_JS_YAML_VERSION}, ` +
+      `found: ${[...resolvedVersions].join(', ') || 'none'}`,
+  );
+  console.log(`js-yaml-version: ${packageMetadata.version} (all consumers)`);
+}
+
+/** Why this exists: @istanbuljs/load-nyc-config is the consumer that previously
+ * pinned js-yaml 3.x. Parsing a representative file detects API regressions. */
+async function verifyIstanbulYamlCompatibility() {
+  const testDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'ruview-js-yaml-compatibility-'),
+  );
+
+  try {
+    fs.writeFileSync(
+      path.join(testDirectory, 'package.json'),
+      '{"name":"ruview-js-yaml-compatibility"}\n',
+    );
+    fs.writeFileSync(
+      path.join(testDirectory, '.nycrc.yml'),
+      'all: true\nexclude:\n  - "dist/**"\nreporter:\n  - text\n',
+    );
+
+    const config = await loadNycConfig({ cwd: testDirectory });
+    assert.equal(config.all, true);
+    assert.deepEqual(config.exclude, ['dist/**']);
+    assert.deepEqual(config.reporter, ['text']);
+    console.log('istanbul-yaml-compatibility: ok');
+  } finally {
+    fs.rmSync(testDirectory, { recursive: true, force: true });
+  }
+}
+
+/** Why this exists: package version checks alone do not prove that npm's current
+ * advisory database considers the resolved package safe. Other known mobile
+ * advisories remain visible without making this focused guard silently pass. */
+function verifyNpmAuditResult() {
+  const audit = spawnSync('npm', ['audit', '--json'], {
+    cwd: path.resolve(__dirname, '..'),
+    encoding: 'utf8',
+    shell: false,
+  });
+
+  if (!audit.stdout) {
+    throw new Error(
+      `npm audit returned no JSON output (exit ${audit.status ?? 'unknown'}). ` +
+        `stderr: ${audit.stderr.trim() || 'empty'}`,
+    );
+  }
+
+  let report;
+  try {
+    report = JSON.parse(audit.stdout);
+  } catch (error) {
+    throw new Error(`npm audit returned invalid JSON: ${error.message}`);
+  }
+
+  const jsYamlAdvisory = report.vulnerabilities?.['js-yaml'];
+  assert.equal(
+    jsYamlAdvisory,
+    undefined,
+    `npm still reports a js-yaml advisory: ${JSON.stringify(jsYamlAdvisory)}`,
+  );
+
+  const counts = report.metadata?.vulnerabilities ?? {};
+  console.log(
+    `js-yaml-audit: clear (other mobile advisories: ${counts.total ?? 'unknown'})`,
+  );
+}
+
+async function main() {
+  verifyInstalledVersion();
+  await verifyIstanbulYamlCompatibility();
+  verifyNpmAuditResult();
+}
+
+main().catch((error) => {
+  console.error(`Dependency security verification failed: ${error.message}`);
+  process.exitCode = 1;
+});
