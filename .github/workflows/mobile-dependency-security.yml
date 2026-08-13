@@ -1,0 +1,64 @@
+# Purpose: Guard the focused ui/mobile js-yaml security override.
+# Input: Mobile package metadata, lockfile, and the compatibility verifier.
+# Output: A reproducible install plus version, runtime, and npm-advisory checks.
+# Invariants/debugging:
+#   - No deployment, registry publication, or repository secret is used.
+#   - The existing Expo peer conflicts are installed with the lockfile's
+#     established legacy-peer strategy; broader Expo alignment is separate.
+#   - Reproduce locally from ui/mobile with the two commands below.
+
+name: Mobile dependency security
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/mobile-dependency-security.yml
+      - ui/mobile/package.json
+      - ui/mobile/package-lock.json
+      - ui/mobile/scripts/verify-js-yaml-override.cjs
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mobile-dependency-security.yml
+      - ui/mobile/package.json
+      - ui/mobile/package-lock.json
+      - ui/mobile/scripts/verify-js-yaml-override.cjs
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-dependency-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-js-yaml:
+    name: Verify patched js-yaml dependency
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ui/mobile
+
+    steps:
+      - name: Check out the exact commit
+        uses: actions/checkout@v4
+
+      - name: Use the supported Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ui/mobile/package-lock.json
+
+      # Why this exists: ui/mobile already contains peer-version drift between
+      # Expo, React Native, and Jest. Legacy peer handling reproduces the
+      # reviewed lockfile without silently rewriting those unrelated versions.
+      - name: Install the reviewed lockfile
+        run: npm ci --legacy-peer-deps --ignore-scripts
+
+      # Why this exists: it checks the resolved version, the real Istanbul YAML
+      # consumer, and npm's live advisory result with actionable errors.
+      - name: Verify js-yaml security and compatibility
+        run: npm run test:dependency-security
