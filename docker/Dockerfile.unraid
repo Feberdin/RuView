@@ -1,0 +1,74 @@
+# Purpose: Build the single RuView sensing service deployed by the Unraid stack.
+# Input: Repository-root build context containing v2/, vendor/ruvector/, ui/, and
+#        docker/docker-entrypoint.sh.
+# Output: A minimal runtime image with sensing-server and its web UI.
+# Invariants: This image intentionally excludes the optional cog-ha-matter and
+#             homecore-server binaries because docker-compose.unraid.yml never
+#             starts them. The general Dockerfile.rust continues to provide the
+#             full multi-command image.
+# Debugging: From the repository root run `docker compose --progress plain
+#            --project-directory . -f docker/docker-compose.unraid.yml build`;
+#            Cargo output identifies the slow/failing crate.
+
+# Why this exists: the complete upstream image compiles three large Rust
+# applications. The Broker has a bounded build timeout, while the Unraid stack
+# only runs wifi-densepose-sensing-server. Building exactly that application
+# keeps deployments bounded without changing the general-purpose image.
+FROM rust:1.89-bookworm AS builder
+
+WORKDIR /build
+
+COPY v2/Cargo.toml v2/Cargo.lock ./
+COPY v2/crates/ ./crates/
+COPY vendor/ruvector/ /build/vendor/ruvector/
+
+RUN cargo build --locked --release \
+        -p wifi-densepose-sensing-server \
+        --features mqtt \
+    && strip target/release/sensing-server
+
+# Why this exists: only runtime libraries, the readiness probe, and trusted CA
+# certificates are needed after compilation.
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /build/target/release/sensing-server /app/sensing-server
+COPY ui/ /app/ui/
+COPY docker/docker-entrypoint.sh /app/docker-entrypoint.sh
+
+# Why this exists: fail the image build immediately if the executable or web
+# assets required by the deployed service are missing.
+RUN set -eu; \
+    test -x /app/sensing-server; \
+    for file in \
+        /app/ui/index.html \
+        /app/ui/observatory.html \
+        /app/ui/pose-fusion.html \
+        /app/ui/viz.html; do \
+        test -f "${file}" || { echo "FATAL: missing UI asset ${file}"; exit 1; }; \
+    done; \
+    for directory in \
+        /app/ui/observatory \
+        /app/ui/pose-fusion \
+        /app/ui/components \
+        /app/ui/services; do \
+        test -d "${directory}" || { echo "FATAL: missing UI directory ${directory}"; exit 1; }; \
+    done
+
+# Why this exists: non-sensitive defaults belong in the image. Optional API
+# authentication is deliberately absent here and must be injected at runtime
+# through the Broker secret flow if the deployment enables it.
+ENV RUST_LOG="info" \
+    CSI_SOURCE="auto" \
+    MODELS_DIR="data/models"
+
+EXPOSE 3000 3001
+EXPOSE 5005/udp
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD []

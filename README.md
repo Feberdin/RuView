@@ -119,6 +119,32 @@ pip install "ruview[client]"              # or: pip install "wifi-densepose[clie
 # from ruview.client import SensingClient, RuViewMqttClient
 ```
 
+### Feberdin Unraid GitOps deployment
+
+The production Unraid stack is defined in
+`docker/docker-compose.unraid.yml`. A cold Rust build exceeds the bounded
+deployment window on the server, so
+`.github/workflows/unraid-image-publish.yml` builds the amd64 image in CI,
+starts it with simulated CSI, verifies `/health/ready`, and only then
+publishes a full-commit tag to GHCR. Production Compose references that tested
+artifact by immutable digest; it never uses a mutable `latest` tag.
+
+Validate a change locally from the repository root:
+
+```bash
+docker compose --project-directory . \
+  --file docker/docker-compose.unraid.yml config --quiet
+```
+
+Deployment is performed only through the Feberdin Unraid Deployment Broker:
+`stack_validate` → `deploy_plan` → plan-bound approval when required →
+`deploy_apply` → status, health, and redacted log checks. Do not run direct
+remote Docker or SSH commands. For failures, inspect the matching
+`Unraid deployment CI` or `Publish RuView Unraid image` run first, then use
+the Broker's deployment status and bounded `logs_tail`. Optional credentials
+must use Broker-managed `secret://NAME` references and must never be baked
+into the image.
+
 [![PyPI ruview](https://img.shields.io/pypi/v/ruview?label=ruview)](https://pypi.org/project/ruview/) [![PyPI wifi-densepose](https://img.shields.io/pypi/v/wifi-densepose?label=wifi-densepose)](https://pypi.org/project/wifi-densepose/)
 
 > [!NOTE]

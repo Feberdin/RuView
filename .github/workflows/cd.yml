@@ -1,14 +1,13 @@
+# Purpose: Deploy RuView only after an explicit operator request or a version tag.
+# Input/Output: Reads a selected environment or v* tag and updates the configured Kubernetes target.
+# Invariants: A normal main-branch push must never mutate staging or production infrastructure.
+# Debugging: Use workflow_dispatch for staging; production requires a reviewed v* tag and environment approval.
+
 name: Continuous Deployment
 
 on:
   push:
-    branches: [ main ]
     tags: [ 'v*' ]
-  workflow_run:
-    workflows: ["Continuous Integration"]
-    types:
-      - completed
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       environment:
@@ -35,7 +34,10 @@ jobs:
   pre-deployment:
     name: Pre-deployment Checks
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    # Why this exists: the former workflow_run trigger deployed to staging
+    # after every successful main CI run, including unrelated Unraid-only
+    # changes. Deployment now requires an explicit dispatch or release tag.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     outputs:
       deploy_env: ${{ steps.determine-env.outputs.environment }}
       image_tag: ${{ steps.determine-tag.outputs.tag }}
