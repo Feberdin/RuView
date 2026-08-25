@@ -153,6 +153,11 @@ Adding an ID requires a reviewed dependency path, a non-vulnerability advisory,
 a removal condition, and a pull request changing both this table and the audit
 script. A vulnerability ID must never be added to the exception list.
 
+The former `v2/.cargo/audit.toml` was removed because it still ignored obsolete
+vulnerability and unsoundness advisories. The packages had already left the
+lockfile, but retaining those IDs could have hidden a later regression. The
+audit script now fails if another local cargo-audit configuration is added.
+
 ## Preventive controls
 
 - One root `.github/dependabot.yml` covers every maintained package directory;
