@@ -15,14 +15,14 @@ test.describe('axe-core a11y smoke', () => {
   for (const view of VIEWS) {
     test(`view: ${view}`, async ({ page }) => {
       await page.goto('/');
-      // Dismiss the welcome modal if it auto-shows.
-      await page.evaluate(() => {
-        const sr = (document.querySelector('nv-app') as HTMLElement & { shadowRoot: ShadowRoot }).shadowRoot;
-        const ob = sr.querySelector('nv-onboarding') as HTMLElement | null;
-        if (ob?.hasAttribute('open')) {
-          (ob.shadowRoot?.querySelector('.skip') as HTMLElement | null)?.click();
-        }
-      });
+      // The first-run check reads IndexedDB asynchronously. Wait for the tour
+      // instead of racing that lookup, then wait for its fade-out before axe
+      // measures contrast against the underlying dashboard.
+      const onboarding = page.locator('nv-onboarding');
+      await expect(onboarding).toHaveAttribute('open', '');
+      await onboarding.getByRole('button', { name: 'Skip tour', exact: true }).click();
+      await expect(onboarding).not.toHaveAttribute('open', '');
+      await expect(onboarding).toHaveCSS('opacity', '0');
       // Navigate to the view via the rail button (except for home which is default).
       if (view !== 'home') {
         await page.evaluate((v) => {
