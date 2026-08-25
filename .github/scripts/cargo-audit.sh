@@ -22,6 +22,15 @@ if ! command -v cargo-audit >/dev/null 2>&1; then
   exit 127
 fi
 
+# A local cargo-audit configuration can silently suppress vulnerabilities
+# before this script sees them. Keep the one reviewed allowlist below as the
+# single source of truth and fail fast if a second configuration appears.
+if [[ -f .cargo/audit.toml || -f audit.toml ]]; then
+  echo "ERROR: an additional cargo-audit configuration can hide advisories." >&2
+  echo "Remove .cargo/audit.toml/audit.toml and review exceptions in this script." >&2
+  exit 2
+fi
+
 # Why this list exists:
 # RustSec classifies these advisories as informational `unmaintained` warnings,
 # not known vulnerabilities. Their upstream dependency paths are still needed
