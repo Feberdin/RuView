@@ -39,8 +39,9 @@ jobs:
 
       - working-directory: dashboard
         run: |
+          # Playwright and axe-core are reviewed devDependencies in the lockfile;
+          # npm ci must be the only dependency resolver in this CI job.
           npm ci
-          npm install --save-dev @playwright/test @axe-core/playwright
           npx playwright install --with-deps
           npm run build
           npx playwright test

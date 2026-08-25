@@ -26,6 +26,7 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
+    "test:dependency-security": "node scripts/verify-dependency-overrides.cjs",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit"
   },
@@ -62,6 +63,9 @@
     "jest": "^29.7.0",
     "ts-jest": "^29.1.0",
     "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "js-yaml": "4.3.1"
   },
   "engines": {
     "node": ">=20.0.0"
