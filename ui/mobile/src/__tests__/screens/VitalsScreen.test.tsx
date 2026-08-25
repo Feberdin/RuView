@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
 import { ThemeProvider } from '@/theme/ThemeContext';
+import { usePoseStore } from '@/stores/poseStore';
 
 jest.mock('@/hooks/usePoseStream', () => ({
   usePoseStream: () => ({
@@ -26,6 +27,14 @@ jest.mock('react-native-svg', () => {
 });
 
 describe('VitalsScreen', () => {
+  beforeEach(() => {
+    act(() => usePoseStore.getState().setConnectionStatus('simulated'));
+  });
+
+  afterEach(() => {
+    act(() => usePoseStore.getState().reset());
+  });
+
   it('module exports VitalsScreen as default', () => {
     const mod = require('@/screens/VitalsScreen');
     expect(mod.default).toBeDefined();

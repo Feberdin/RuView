@@ -32,22 +32,23 @@ and not the DSP pipeline).
 
 from __future__ import annotations
 
+from typing import Any
+
 # Re-export the user-facing types. Import errors are deferred to the
 # moment the user actually instantiates one of these classes — that way
 # `from wifi_densepose.client import HABlueprintHelper` still works
 # even if the user hasn't installed `[client]` extras yet (HABlueprint
 # is pure stdlib).
 from wifi_densepose.client.ha import (
+    HABlueprintHelper,
     HaDiscoveryPayload,
     HaEntity,
-    HABlueprintHelper,
 )
 from wifi_densepose.client.primitives import (
     SemanticPrimitive,
     SemanticPrimitiveEvent,
     SemanticPrimitiveListener,
 )
-
 
 __all__ = [
     # ws — re-exported lazily; see module docstring
@@ -69,7 +70,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """Lazy re-exports for the modules that pull in optional extras.
 
     `SensingClient` needs `websockets`; `RuViewMqttClient` needs

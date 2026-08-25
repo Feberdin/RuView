@@ -1,0 +1,10 @@
+appId: com.ruvnet.wifidensepose
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - live_screen
+    - vitals_screen
+    - zones_screen
+    - mat_screen
+    - settings_screen
+    - offline_fallback

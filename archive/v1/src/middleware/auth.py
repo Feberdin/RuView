@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 from fastapi import Request, Response, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError as JWTError
 from passlib.context import CryptContext
 
 from src.config.settings import Settings

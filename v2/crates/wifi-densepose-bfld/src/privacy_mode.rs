@@ -48,12 +48,12 @@ pub enum PrivacyAction {
 
 impl PrivacyAction {
     /// All actions in canonical (bit) order — used to encode an action set.
-    pub const ALL: [PrivacyAction; 5] = [
-        PrivacyAction::Allow,
-        PrivacyAction::SuppressIdentity,
-        PrivacyAction::ReduceResolution,
-        PrivacyAction::DropRaw,
-        PrivacyAction::AggregateOnly,
+    pub const ALL: [Self; 5] = [
+        Self::Allow,
+        Self::SuppressIdentity,
+        Self::ReduceResolution,
+        Self::DropRaw,
+        Self::AggregateOnly,
     ];
 }
 
@@ -144,7 +144,13 @@ impl PrivacyAttestationProof {
         hasher.update(&prev_hash);
         hasher.update(&[mode.as_u8(), action_bits, class]);
         let hash = *hasher.finalize().as_bytes();
-        Self { mode, action_bits, class, prev_hash, hash }
+        Self {
+            mode,
+            action_bits,
+            class,
+            prev_hash,
+            hash,
+        }
     }
 }
 
@@ -153,7 +159,7 @@ impl PrivacyAttestationProof {
 /// attestation to the audit log.
 ///
 /// `std`-gated because the audit log is heap-allocated (`Vec`), matching the
-/// crate convention (the ESP32-S3 no_std self-only path uses a fixed-mode
+/// crate convention (the ESP32-S3 `no_std` self-only path uses a fixed-mode
 /// posture without a growable log; see `frame.rs`).
 #[cfg(feature = "std")]
 #[derive(Debug, Clone)]
@@ -168,7 +174,10 @@ impl PrivacyModeRegistry {
     #[must_use]
     pub fn new(initial: PrivacyMode) -> Self {
         let genesis = PrivacyAttestationProof::compute(initial, [0u8; 32]);
-        Self { active: initial, audit_log: vec![genesis] }
+        Self {
+            active: initial,
+            audit_log: vec![genesis],
+        }
     }
 
     /// The currently active mode.
@@ -191,16 +200,19 @@ impl PrivacyModeRegistry {
 
     /// Switch the active mode, appending a hash-chained attestation.
     pub fn set_mode(&mut self, mode: PrivacyMode) -> &PrivacyAttestationProof {
-        let prev = self.audit_log.last().map(|p| p.hash).unwrap_or([0u8; 32]);
+        let prev = self.audit_log.last().map_or([0u8; 32], |p| p.hash);
         self.active = mode;
-        self.audit_log.push(PrivacyAttestationProof::compute(mode, prev));
+        self.audit_log
+            .push(PrivacyAttestationProof::compute(mode, prev));
         self.audit_log.last().unwrap()
     }
 
     /// The latest attestation proof (for HA/Matter diagnostics).
     #[must_use]
     pub fn latest_proof(&self) -> &PrivacyAttestationProof {
-        self.audit_log.last().expect("registry always has a genesis proof")
+        self.audit_log
+            .last()
+            .expect("registry always has a genesis proof")
     }
 
     /// The full attestation chain.
@@ -236,10 +248,22 @@ mod tests {
     #[test]
     fn mode_to_class_mapping() {
         assert_eq!(PrivacyMode::RawResearch.target_class(), PrivacyClass::Raw);
-        assert_eq!(PrivacyMode::PrivateHome.target_class(), PrivacyClass::Anonymous);
-        assert_eq!(PrivacyMode::EnterpriseAnonymous.target_class(), PrivacyClass::Anonymous);
-        assert_eq!(PrivacyMode::CareWithConsent.target_class(), PrivacyClass::Derived);
-        assert_eq!(PrivacyMode::StrictNoIdentity.target_class(), PrivacyClass::Restricted);
+        assert_eq!(
+            PrivacyMode::PrivateHome.target_class(),
+            PrivacyClass::Anonymous
+        );
+        assert_eq!(
+            PrivacyMode::EnterpriseAnonymous.target_class(),
+            PrivacyClass::Anonymous
+        );
+        assert_eq!(
+            PrivacyMode::CareWithConsent.target_class(),
+            PrivacyClass::Derived
+        );
+        assert_eq!(
+            PrivacyMode::StrictNoIdentity.target_class(),
+            PrivacyClass::Restricted
+        );
     }
 
     #[test]

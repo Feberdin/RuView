@@ -25,6 +25,10 @@ API surface. v2 is a hard break (semver-justified). See the
 
 from __future__ import annotations
 
+from importlib import import_module
+from types import ModuleType
+from typing import cast
+
 # Public Python version follows the wheel version, NOT the Rust core
 # version. The Rust core version is surfaced separately as
 # `__rust_version__` for diagnostics.
@@ -33,7 +37,7 @@ __version__ = "2.0.0a1"
 # Re-export the compiled module's surface. The leading underscore on
 # `_native` is intentional — it marks the binding module as internal.
 # Users always import from `wifi_densepose` directly.
-from wifi_densepose import _native
+_native: ModuleType = import_module("wifi_densepose._native")
 
 # ─── P2 — Core type re-exports ───────────────────────────────────────
 # Bound types land in `wifi_densepose._native` and are re-exported here
@@ -77,7 +81,7 @@ def hello() -> str:
     Used by ``python/tests/test_smoke.py`` to assert the PyO3 round-trip
     works end-to-end on every cibuildwheel target.
     """
-    return _native.hello()
+    return cast(str, _native.hello())
 
 
 __all__ = [

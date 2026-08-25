@@ -28,10 +28,7 @@ impl PrivacyGate {
     ///
     /// Returns [`BfldError::InvalidDemote`] when `target` would *increase*
     /// the information density (lower class number than the source).
-    pub fn demote(
-        mut frame: BfldFrame,
-        target: PrivacyClass,
-    ) -> Result<BfldFrame, BfldError> {
+    pub fn demote(mut frame: BfldFrame, target: PrivacyClass) -> Result<BfldFrame, BfldError> {
         let current = PrivacyClass::try_from(frame.header.privacy_class)?;
         if target.as_u8() < current.as_u8() {
             return Err(BfldError::InvalidDemote {
@@ -94,7 +91,7 @@ impl Default for PrivacyGate {
     }
 }
 
-/// Discard the rest of an unused (#[allow(dead_code)]) — placeholder so
+/// Discard the rest of an unused (#[`allow(dead_code)`]) — placeholder so
 /// `BfldPayload` import isn't unused in builds that strip the implementation.
 #[allow(dead_code)]
 fn _unused_payload_marker(_: BfldPayload) {}

@@ -1,11 +1,54 @@
-# Fluentd Configuration for WiFi-DensePose
-# This configuration sets up comprehensive log aggregation and processing
+# Purpose: Collect WiFi-DensePose Kubernetes logs with a least-privilege
+# Fluentd DaemonSet and bounded namespace resources.
+# Input/output: Read-only pod and journal logs are enriched and forwarded to the
+# configured outputs; no application credential is embedded here.
+# Invariants/debugging: The container is non-root, drops all capabilities, uses
+# a short-lived projected service-account token, and mounts only log subpaths.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/part-of: wifi-densepose
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: logging-quota
+  namespace: logging
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 2Gi
+    limits.cpu: "4"
+    limits.memory: 4Gi
+    pods: "20"
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: logging-defaults
+  namespace: logging
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 256Mi
+
+---
 
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: fluentd-config
-  namespace: kube-system
+  namespace: logging
   labels:
     app: fluentd
     component: logging
@@ -14,7 +57,6 @@ data:
     # Main configuration file for Fluentd
     @include kubernetes.conf
     @include prometheus.conf
-    @include systemd.conf
     @include wifi-densepose.conf
 
   kubernetes.conf: |
@@ -23,7 +65,7 @@ data:
       @type tail
       @id in_tail_container_logs
       path /var/log/containers/*.log
-      pos_file /var/log/fluentd-containers.log.pos
+      pos_file /var/log/fluentd-buffers/fluentd-containers.log.pos
       tag kubernetes.*
       read_from_head true
       <parse>
@@ -453,7 +495,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: fluentd
-  namespace: kube-system
+  namespace: logging
   labels:
     app: fluentd
     component: logging
@@ -467,11 +509,20 @@ spec:
         app: fluentd
         component: logging
       annotations:
+        container.apparmor.security.beta.kubernetes.io/fluentd: runtime/default
         prometheus.io/scrape: "true"
         prometheus.io/port: "24231"
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: fluentd
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       tolerations:
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
@@ -479,7 +530,19 @@ spec:
           effect: NoSchedule
       containers:
         - name: fluentd
-          image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch7-1
+          image: fluent/fluentd-kubernetes-daemonset:v1.16-debian-elasticsearch7-1@sha256:4f148ebcf8a90b4f54897931f214cf6b7bb27177fb184ece558d7efb13041c0d
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           env:
             - name: FLUENT_ELASTICSEARCH_HOST
               value: "elasticsearch.logging.svc.cluster.local"
@@ -488,7 +551,7 @@ spec:
             - name: FLUENT_ELASTICSEARCH_SCHEME
               value: "http"
             - name: FLUENT_UID
-              value: "0"
+              value: "10001"
             - name: FLUENTD_SYSTEMD_CONF
               value: disable
             - name: ENVIRONMENT
@@ -509,15 +572,22 @@ spec:
               memory: 256Mi
               cpu: 100m
           volumeMounts:
-            - name: varlog
-              mountPath: /var/log
-            - name: varlibdockercontainers
-              mountPath: /var/lib/docker/containers
+            - name: varlogcontainers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: varlogpods
+              mountPath: /var/log/pods
               readOnly: true
             - name: fluentd-config
               mountPath: /fluentd/etc
+              readOnly: true
             - name: fluentd-buffer
               mountPath: /var/log/fluentd-buffers
+            - name: service-account
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+            - name: temp
+              mountPath: /tmp
           ports:
             - containerPort: 24231
               name: prometheus
@@ -536,26 +606,48 @@ spec:
             periodSeconds: 10
       terminationGracePeriodSeconds: 30
       volumes:
-        - name: varlog
+        - name: varlogcontainers
           hostPath:
-            path: /var/log
-        - name: varlibdockercontainers
+            path: /var/log/containers
+            type: Directory
+        - name: varlogpods
           hostPath:
-            path: /var/lib/docker/containers
+            path: /var/log/pods
+            type: Directory
         - name: fluentd-config
           configMap:
             name: fluentd-config
         - name: fluentd-buffer
-          hostPath:
-            path: /var/log/fluentd-buffers
-            type: DirectoryOrCreate
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: service-account
+          projected:
+            defaultMode: 0440
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+                  audience: https://kubernetes.default.svc
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - downwardAPI:
+                  items:
+                    - path: namespace
+                      fieldRef:
+                        fieldPath: metadata.namespace
+        - name: temp
+          emptyDir:
+            sizeLimit: 64Mi
 
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: fluentd
-  namespace: kube-system
+  namespace: logging
   labels:
     app: fluentd
 
@@ -591,14 +683,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: fluentd
-    namespace: kube-system
+    namespace: logging
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: fluentd
-  namespace: kube-system
+  namespace: logging
   labels:
     app: fluentd
     component: logging

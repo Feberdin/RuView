@@ -24,8 +24,45 @@ updates:
       - dependencies
       - mobile
 
-  # Desktop UI npm deps. Direct vite devDep currently has a HIGH advisory
-  # (dev-server-only path traversal); track future bumps automatically.
+  # Dependabot needs one entry per lockfile directory in a monorepo. This
+  # single repository-level file controls all maintained packages below.
+  - package-ecosystem: npm
+    directory: /dashboard
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - dashboard
+
+  - package-ecosystem: npm
+    directory: /examples/frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - frontend
+
+  - package-ecosystem: npm
+    directory: /tools/ruview-cli
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - cli
+
+  - package-ecosystem: npm
+    directory: /tools/ruview-mcp
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - mcp
+
+  # Desktop UI npm deps.
   - package-ecosystem: npm
     directory: /v2/crates/wifi-densepose-desktop/ui
     schedule:
@@ -46,8 +83,43 @@ updates:
       - dependencies
       - python
 
-  # Rust workspace (15+ crates). cargo audit is not currently wired into
-  # any workflow, so Dependabot is the primary automated bump path.
+  - package-ecosystem: pip
+    directory: /python
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+
+  - package-ecosystem: pip
+    directory: /python/ruview-meta
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+
+  - package-ecosystem: pip
+    directory: /python/tombstone
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+
+  - package-ecosystem: pip
+    directory: /aether-arena/space
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+
+  # Rust workspace. CI additionally runs cargo-audit for every lockfile.
   - package-ecosystem: cargo
     directory: /v2
     schedule:
@@ -56,3 +128,31 @@ updates:
     labels:
       - dependencies
       - rust
+
+  - package-ecosystem: cargo
+    directory: /python
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - rust
+
+  # Runtime and deployment container definitions.
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: /v2/crates/nvsim-server
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - docker

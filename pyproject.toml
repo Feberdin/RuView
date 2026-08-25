@@ -81,7 +81,8 @@ dependencies = [
     "rich>=13.6.0",
     "typer>=0.9.0",
     "python-multipart>=0.0.6",
-    "python-jose[cryptography]>=3.3.0",
+    # Avoid python-jose's unpatched mandatory ecdsa dependency.
+    "PyJWT[crypto]>=2.12.1",
     "passlib[bcrypt]>=1.7.4",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0",

@@ -1,16 +1,16 @@
 //! `BfldEvent` — privacy-gated output event. ADR-121 §2.1, ADR-122 §2.1.
 //!
-//! Field exposure per privacy_class (ADR-122 §2.1):
+//! Field exposure per `privacy_class` (ADR-122 §2.1):
 //!
 //! | Field                  | Raw(0) | Derived(1) | Anonymous(2) | Restricted(3) |
 //! |------------------------|--------|------------|--------------|---------------|
 //! | presence               | y      | y          | y            | y             |
 //! | motion                 | y      | y          | y            | y             |
-//! | person_count           | y      | y          | y            | y             |
+//! | `person_count`           | y      | y          | y            | y             |
 //! | confidence             | y      | y          | y            | y             |
-//! | zone_id                | y      | y          | y            | y             |
-//! | identity_risk_score    | y      | y          | **y**        | **n**         |
-//! | rf_signature_hash      | y      | y          | **y**        | **n**         |
+//! | `zone_id`                | y      | y          | y            | y             |
+//! | `identity_risk_score`    | y      | y          | **y**        | **n**         |
+//! | `rf_signature_hash`      | y      | y          | **y**        | **n**         |
 //!
 //! Construction defers to [`BfldEvent::with_privacy_gating`] which applies
 //! the policy by stripping disallowed fields to `None` based on the supplied
@@ -67,13 +67,16 @@ pub struct BfldEvent {
     /// Serializes as the JSON string `"blake3:<64-hex>"` per the BFLD wire spec.
     #[cfg_attr(
         feature = "serde-json",
-        serde(skip_serializing_if = "Option::is_none", serialize_with = "ser_rf_signature_hash")
+        serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "ser_rf_signature_hash"
+        )
     )]
     pub rf_signature_hash: Option<[u8; 32]>,
 }
 
 impl BfldEvent {
-    /// Build an event from sensing fields, applying the privacy_class policy
+    /// Build an event from sensing fields, applying the `privacy_class` policy
     /// to mask identity-derived fields. `identity_risk_score` and
     /// `rf_signature_hash` are nulled out at class `Restricted`.
     #[must_use]
@@ -126,10 +129,7 @@ impl BfldEvent {
 }
 
 #[cfg(feature = "serde-json")]
-fn ser_privacy_class<S: serde::Serializer>(
-    class: &PrivacyClass,
-    s: S,
-) -> Result<S::Ok, S::Error> {
+fn ser_privacy_class<S: serde::Serializer>(class: &PrivacyClass, s: S) -> Result<S::Ok, S::Error> {
     let name = match class {
         PrivacyClass::Raw => "raw",
         PrivacyClass::Derived => "derived",
@@ -149,7 +149,9 @@ fn ser_rf_signature_hash<S: serde::Serializer>(
     s: S,
 ) -> Result<S::Ok, S::Error> {
     // The unwrap is safe: skip_serializing_if guarantees we only run with Some.
-    let bytes = hash.as_ref().expect("ser_rf_signature_hash called with None");
+    let bytes = hash
+        .as_ref()
+        .expect("ser_rf_signature_hash called with None");
     let mut out = String::with_capacity(7 + 64); // "blake3:" + 32*2 hex chars
     out.push_str("blake3:");
     for b in bytes {

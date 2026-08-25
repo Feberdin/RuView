@@ -20,10 +20,10 @@ import math
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 import wifi_densepose
 from wifi_densepose import BfldFrame, BfldKind, BfldReport
-
 
 # ─── BfldKind enum ───────────────────────────────────────────────────
 
@@ -75,7 +75,9 @@ def test_bfld_kind_repr() -> None:
 # ─── BfldFrame construction ──────────────────────────────────────────
 
 
-def _make_matrix(n_rows: int, n_cols: int, n_subcarriers: int) -> np.ndarray:
+def _make_matrix(
+    n_rows: int, n_cols: int, n_subcarriers: int
+) -> NDArray[np.complex128]:
     """Synthetic feedback matrix with non-trivial amplitudes so the
     mean_amplitude getter has something to chew on."""
     rng = np.random.default_rng(seed=42)

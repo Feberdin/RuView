@@ -78,10 +78,10 @@ Content-Type: application/json
 **Response:**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "<redacted>",
   "token_type": "bearer",
   "expires_in": 86400,
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "refresh_token": "<redacted>"
 }
 ```
 

@@ -10,7 +10,6 @@ binary, but the wire protocol is the contract under test here.
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any
 
@@ -24,7 +23,6 @@ from wifi_densepose.client import (
     SensingClient,
     SensingMessage,
 )
-
 
 # ─── In-process WS server fixture ────────────────────────────────────
 
@@ -81,7 +79,7 @@ async def ws_server() -> Any:
     """Start a websocket server on a random port; yield the bound URL."""
     server = await websockets.serve(_handler, "127.0.0.1", 0)
     # Get the bound port (host="127.0.0.1" returns one socket).
-    port = server.sockets[0].getsockname()[1]  # type: ignore[union-attr]
+    port = server.sockets[0].getsockname()[1]
     try:
         yield f"ws://127.0.0.1:{port}/ws/sensing"
     finally:

@@ -1,7 +1,7 @@
 //! Acceptance tests for `BfldFrame` round-trip (ADR-119 AC4/AC5/AC6).
 //!
 //! Requires the `std` feature; under `--no-default-features` the entire file
-//! is compiled out (BfldFrame depends on `Vec<u8>`).
+//! is compiled out (`BfldFrame` depends on `Vec<u8>`).
 
 #![cfg(feature = "std")]
 

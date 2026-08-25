@@ -1,0 +1,12 @@
+{
+  // Purpose: Keep repository Markdown checks reproducible without rejecting
+  // intentional long tables/URLs or the static disclosure widgets used in docs.
+  // Inputs/outputs: markdownlint-cli2 reads this file and reports real Markdown
+  // structure problems. No code execution or external access is configured.
+  "config": {
+    "MD013": false,
+    "MD033": {
+      "allowed_elements": ["details", "summary", "strong"]
+    }
+  }
+}

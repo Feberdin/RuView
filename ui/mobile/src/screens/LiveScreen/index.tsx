@@ -44,7 +44,7 @@ const WebLiveViewer = ({ frame, onReady, onFps, onError }: ViewerProps) => {
 };
 
 const NativeLiveViewer = ({ frame, onReady, onFps, onError }: ViewerProps) => {
-  const webViewRef = useRef(null);
+  const webViewRef = useRef<{ postMessage: (message: string) => void } | null>(null);
   const [WVComponent, setWVComponent] = useState<React.ComponentType<any> | null>(null);
 
   useEffect(() => {
@@ -55,6 +55,11 @@ const NativeLiveViewer = ({ frame, onReady, onFps, onError }: ViewerProps) => {
       onError('WebView not available on this platform');
     }
   }, [onError]);
+
+  useEffect(() => {
+    if (!frame || !webViewRef.current) return;
+    webViewRef.current.postMessage(JSON.stringify({ type: 'FRAME_UPDATE', payload: frame }));
+  }, [frame]);
 
   if (!WVComponent) return null;
 

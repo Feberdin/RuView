@@ -9,7 +9,9 @@ fastapi>=0.95.0
 uvicorn>=0.20.0
 websockets>=15.0.1
 pydantic>=1.10.0
-python-jose[cryptography]>=3.3.0
+# PyJWT replaces python-jose, whose mandatory ecdsa dependency has an
+# unpatched signature-verification vulnerability (PYSEC-2026-1325).
+PyJWT[crypto]>=2.12.1
 python-multipart>=0.0.6
 passlib[bcrypt]>=1.7.4
 httpx>=0.24.0

@@ -12,7 +12,7 @@
 //!
 //! Test discipline (per `feedback_mqtt_integration_test_patterns` memory):
 //! - per-test unique `client_id` (current nanosecond timestamp suffix)
-//! - subscriber eventloop pumped until SubAck arrives before publishing
+//! - subscriber eventloop pumped until `SubAck` arrives before publishing
 //! - explicit `wait_for_n_messages` with timeout — never `loop { iter.recv() }`
 
 #![cfg(feature = "mqtt")]
@@ -23,9 +23,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rumqttc::{Client, Event, Incoming, MqttOptions, Packet, QoS};
-use wifi_densepose_bfld::{
-    publish_event, BfldEvent, PrivacyClass, RumqttPublisher,
-};
+use wifi_densepose_bfld::{publish_event, BfldEvent, PrivacyClass, RumqttPublisher};
 
 const SUBSCRIBE_TIMEOUT: Duration = Duration::from_secs(5);
 const RECEIVE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -63,7 +61,7 @@ fn sample_event(node_id: &str) -> BfldEvent {
 }
 
 /// Spawn a subscriber + a pump thread. Returns the receiver of incoming
-/// `(topic, payload)` pairs and a oneshot signalling SubAck arrival.
+/// `(topic, payload)` pairs and a oneshot signalling `SubAck` arrival.
 fn spawn_subscriber(
     host: &str,
     port: u16,

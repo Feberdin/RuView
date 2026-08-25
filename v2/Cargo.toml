@@ -82,6 +82,7 @@ members = [
 exclude = [
     "crates/wifi-densepose-wasm-edge",
     "crates/homecore-plugin-example",
+    "vendor/midstreamer-temporal-compare",
 ]
 
 [workspace.package]
@@ -125,7 +126,6 @@ tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"]
 hyper = { version = "1.1", features = ["full"] }
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "sqlite", "uuid", "chrono", "json"] }
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
 # Configuration
@@ -187,7 +187,7 @@ midstreamer-attractor = "0.2"
 
 # ruvector integration (published on crates.io)
 # Vendored at v2.1.0 in vendor/ruvector; using crates.io versions until published.
-ruvector-core = "2.2.0"
+ruvector-core = "2.3.0"
 ruvector-mincut = "2.0.4"
 ruvector-attn-mincut = "2.0.4"
 ruvector-temporal-tensor = "2.0.6"
@@ -225,3 +225,8 @@ strip = false
 [profile.bench]
 inherits = "release"
 debug = true
+
+# The published 0.2.1 release still pins vulnerable lru lines. The reviewed
+# local source preserves its API and advances only lru to memory-safe 0.18.2.
+[patch.crates-io]
+midstreamer-temporal-compare = { path = "vendor/midstreamer-temporal-compare" }

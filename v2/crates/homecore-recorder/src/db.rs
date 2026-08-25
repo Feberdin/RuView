@@ -14,7 +14,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
+use sqlx_core::{query::query, query_as::query_as, Error as SqlxError};
+use sqlx_sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::debug;
@@ -29,7 +30,7 @@ use crate::schema::ALL_DDL;
 #[derive(Error, Debug)]
 pub enum RecorderError {
     #[error("SQLite error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    Sqlx(#[from] SqlxError),
 
     #[error("serialisation error: {0}")]
     Json(#[from] serde_json::Error),
@@ -137,12 +138,12 @@ impl Recorder {
     async fn apply_schema(&self) -> Result<(), RecorderError> {
         for ddl in ALL_DDL {
             // Each DDL block may contain multiple statements separated by `;`.
-            // sqlx::query does not support multi-statement strings directly,
+            // SQLx query execution does not support multi-statement strings directly,
             // so we split on the statement boundary and execute individually.
             for stmt in split_statements(ddl) {
                 let stmt = stmt.trim();
                 if !stmt.is_empty() {
-                    sqlx::query(stmt).execute(&self.pool).await?;
+                    query(stmt).execute(&self.pool).await?;
                 }
             }
         }
@@ -167,7 +168,7 @@ impl Recorder {
         let attributes_id: i64 = {
             // Try to find an existing row first.
             let existing: Option<(i64,)> =
-                sqlx::query_as("SELECT attributes_id FROM state_attributes WHERE hash = ?")
+                query_as("SELECT attributes_id FROM state_attributes WHERE hash = ?")
                     .bind(hash)
                     .fetch_optional(&self.pool)
                     .await?;
@@ -177,7 +178,7 @@ impl Recorder {
                 id
             } else {
                 let result =
-                    sqlx::query("INSERT INTO state_attributes (shared_attrs, hash) VALUES (?, ?)")
+                    query("INSERT INTO state_attributes (shared_attrs, hash) VALUES (?, ?)")
                         .bind(&attrs_json)
                         .bind(hash)
                         .execute(&self.pool)
@@ -190,7 +191,7 @@ impl Recorder {
         let last_changed_ts = new_state.last_changed.timestamp_micros() as f64 / 1_000_000.0;
         let last_updated_ts = new_state.last_updated.timestamp_micros() as f64 / 1_000_000.0;
 
-        let result = sqlx::query(
+        let result = query(
             "INSERT INTO states \
              (entity_id, state, attributes_id, last_changed_ts, last_updated_ts, context_id) \
              VALUES (?, ?, ?, ?, ?, ?)",
@@ -247,19 +248,26 @@ impl Recorder {
 
         let mut rows = Vec::with_capacity(hits.len());
         for (state_id, _score) in hits {
-            let row: Option<(String, String, Option<String>, f64, f64, Option<String>)> =
-                sqlx::query_as(
-                    "SELECT s.entity_id, s.state, sa.shared_attrs, \
+            let row: Option<(String, String, Option<String>, f64, f64, Option<String>)> = query_as(
+                "SELECT s.entity_id, s.state, sa.shared_attrs, \
                              s.last_changed_ts, s.last_updated_ts, s.context_id \
                      FROM states s \
                      LEFT JOIN state_attributes sa ON s.attributes_id = sa.attributes_id \
                      WHERE s.state_id = ?",
-                )
-                .bind(state_id)
-                .fetch_optional(&self.pool)
-                .await?;
+            )
+            .bind(state_id)
+            .fetch_optional(&self.pool)
+            .await?;
 
-            if let Some((entity_id, state, shared_attrs, last_changed_ts, last_updated_ts, context_id)) = row {
+            if let Some((
+                entity_id,
+                state,
+                shared_attrs,
+                last_changed_ts,
+                last_updated_ts,
+                context_id,
+            )) = row
+            {
                 let eid = EntityId::parse(&entity_id)
                     .unwrap_or_else(|_| EntityId::parse("unknown.unknown").unwrap());
                 let attributes = shared_attrs
@@ -287,7 +295,7 @@ impl Recorder {
         let time_fired_ts = event.fired_at.timestamp_micros() as f64 / 1_000_000.0;
         let context_id = event.context.id.to_string();
 
-        let result = sqlx::query(
+        let result = query(
             "INSERT INTO events (event_type, event_data, time_fired_ts, context_id) \
              VALUES (?, ?, ?, ?)",
         )
@@ -312,7 +320,7 @@ impl Recorder {
         let since_ts = since.timestamp_micros() as f64 / 1_000_000.0;
         let until_ts = until.timestamp_micros() as f64 / 1_000_000.0;
 
-        let rows: Vec<(i64, String, Option<String>, f64, f64, Option<String>)> = sqlx::query_as(
+        let rows: Vec<(i64, String, Option<String>, f64, f64, Option<String>)> = query_as(
             "SELECT s.state_id, s.state, sa.shared_attrs, \
                     s.last_changed_ts, s.last_updated_ts, s.context_id \
              FROM states s \
@@ -329,23 +337,25 @@ impl Recorder {
         .await?;
 
         rows.into_iter()
-            .map(|(state_id, state, shared_attrs, last_changed_ts, last_updated_ts, context_id)| {
-                let attributes = shared_attrs
-                    .as_deref()
-                    .map(serde_json::from_str)
-                    .transpose()?
-                    .unwrap_or(serde_json::Value::Object(Default::default()));
+            .map(
+                |(state_id, state, shared_attrs, last_changed_ts, last_updated_ts, context_id)| {
+                    let attributes = shared_attrs
+                        .as_deref()
+                        .map(serde_json::from_str)
+                        .transpose()?
+                        .unwrap_or(serde_json::Value::Object(Default::default()));
 
-                Ok(StateRow {
-                    state_id,
-                    entity_id: entity_id.clone(),
-                    state,
-                    attributes,
-                    last_changed_ts,
-                    last_updated_ts,
-                    context_id,
-                })
-            })
+                    Ok(StateRow {
+                        state_id,
+                        entity_id: entity_id.clone(),
+                        state,
+                        attributes,
+                        last_changed_ts,
+                        last_updated_ts,
+                        context_id,
+                    })
+                },
+            )
             .collect()
     }
 }
@@ -382,14 +392,20 @@ mod tests {
     use super::*;
 
     async fn open_memory() -> Recorder {
-        Recorder::open("sqlite::memory:").await.expect("open in-memory DB")
+        Recorder::open("sqlite::memory:")
+            .await
+            .expect("open in-memory DB")
     }
 
     fn entity(s: &str) -> EntityId {
         EntityId::parse(s).unwrap()
     }
 
-    fn make_state_event(entity_id: &str, state_val: &str, attrs: serde_json::Value) -> StateChangedEvent {
+    fn make_state_event(
+        entity_id: &str,
+        state_val: &str,
+        attrs: serde_json::Value,
+    ) -> StateChangedEvent {
         let eid = entity(entity_id);
         let ctx = Context::new();
         let s = Arc::new(State::new(eid.clone(), state_val, attrs, ctx));
@@ -408,12 +424,15 @@ mod tests {
         let recorder = open_memory().await;
         // Verify all four tables exist by querying sqlite_master.
         let tables: Vec<(String,)> =
-            sqlx::query_as("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            query_as("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
                 .fetch_all(&recorder.pool)
                 .await
                 .unwrap();
         let names: Vec<&str> = tables.iter().map(|(n,)| n.as_str()).collect();
-        assert!(names.contains(&"state_attributes"), "missing state_attributes");
+        assert!(
+            names.contains(&"state_attributes"),
+            "missing state_attributes"
+        );
         assert!(names.contains(&"states"), "missing states");
         assert!(names.contains(&"events"), "missing events");
         assert!(names.contains(&"recorder_runs"), "missing recorder_runs");
@@ -423,7 +442,10 @@ mod tests {
     async fn schema_idempotent_double_open() {
         // Applying schema twice (on the same pool) must not panic or error.
         let recorder = open_memory().await;
-        recorder.apply_schema().await.expect("second apply_schema must be a no-op");
+        recorder
+            .apply_schema()
+            .await
+            .expect("second apply_schema must be a no-op");
     }
 
     // ── record_state ──────────────────────────────────────────────────────────
@@ -431,13 +453,17 @@ mod tests {
     #[tokio::test]
     async fn record_state_inserts_row() {
         let recorder = open_memory().await;
-        let event = make_state_event("light.kitchen", "on", serde_json::json!({"brightness": 200}));
+        let event = make_state_event(
+            "light.kitchen",
+            "on",
+            serde_json::json!({"brightness": 200}),
+        );
 
         let state_id = recorder.record_state(&event).await.unwrap();
         assert!(state_id.is_some(), "expected a state_id");
 
         let count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM states WHERE entity_id = 'light.kitchen'")
+            query_as("SELECT COUNT(*) FROM states WHERE entity_id = 'light.kitchen'")
                 .fetch_one(&recorder.pool)
                 .await
                 .unwrap();
@@ -470,19 +496,20 @@ mod tests {
         recorder.record_state(&e1).await.unwrap();
         recorder.record_state(&e2).await.unwrap();
 
-        let attr_count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM state_attributes")
-                .fetch_one(&recorder.pool)
-                .await
-                .unwrap();
+        let attr_count: (i64,) = query_as("SELECT COUNT(*) FROM state_attributes")
+            .fetch_one(&recorder.pool)
+            .await
+            .unwrap();
         // Both events share identical attrs → only one state_attributes row.
-        assert_eq!(attr_count.0, 1, "identical attrs must share one state_attributes row");
+        assert_eq!(
+            attr_count.0, 1,
+            "identical attrs must share one state_attributes row"
+        );
 
-        let state_count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM states")
-                .fetch_one(&recorder.pool)
-                .await
-                .unwrap();
+        let state_count: (i64,) = query_as("SELECT COUNT(*) FROM states")
+            .fetch_one(&recorder.pool)
+            .await
+            .unwrap();
         assert_eq!(state_count.0, 2, "two states rows expected");
     }
 
@@ -495,11 +522,10 @@ mod tests {
         recorder.record_state(&e1).await.unwrap();
         recorder.record_state(&e2).await.unwrap();
 
-        let attr_count: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM state_attributes")
-                .fetch_one(&recorder.pool)
-                .await
-                .unwrap();
+        let attr_count: (i64,) = query_as("SELECT COUNT(*) FROM state_attributes")
+            .fetch_one(&recorder.pool)
+            .await
+            .unwrap();
         assert_eq!(attr_count.0, 2);
     }
 
@@ -519,7 +545,10 @@ mod tests {
 
         let since = Utc::now() - chrono::Duration::seconds(10);
         let until = Utc::now() + chrono::Duration::seconds(10);
-        let rows = recorder.get_state_history(&eid, since, until).await.unwrap();
+        let rows = recorder
+            .get_state_history(&eid, since, until)
+            .await
+            .unwrap();
 
         assert_eq!(rows.len(), 3, "expected 3 history rows");
         // Verify ascending order by last_updated_ts.
@@ -549,7 +578,7 @@ mod tests {
         assert!(event_id > 0);
 
         let row: (String, String) =
-            sqlx::query_as("SELECT event_type, event_data FROM events WHERE event_id = ?")
+            query_as("SELECT event_type, event_data FROM events WHERE event_id = ?")
                 .bind(event_id)
                 .fetch_one(&recorder.pool)
                 .await

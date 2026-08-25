@@ -108,7 +108,7 @@ fn motion_values_track_input_motion_values() {
     let motions = motion_messages(&log.published);
     assert_eq!(motions.len(), values.len());
     for (i, &expected) in values.iter().enumerate() {
-        let formatted = format!("{:.6}", expected);
+        let formatted = format!("{expected:.6}");
         assert_eq!(
             motions[i].payload, formatted,
             "motion[{i}] payload {} != expected {}",
@@ -139,7 +139,11 @@ fn motion_topic_never_appears_for_class_below_anonymous_publishing() {
 
     let log = pub_arc.lock().unwrap();
     let motions = motion_messages(&log.published);
-    assert_eq!(motions.len(), 1, "Restricted still publishes motion (sensing)");
+    assert_eq!(
+        motions.len(),
+        1,
+        "Restricted still publishes motion (sensing)"
+    );
     assert!(
         !log.published
             .iter()

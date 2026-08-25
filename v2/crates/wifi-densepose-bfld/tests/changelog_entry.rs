@@ -17,8 +17,7 @@ fn changelog_documents_bfld_entry_under_unreleased() {
     let after_unreleased = CHANGELOG[unreleased..]
         .find("\n## [0")
         .or_else(|| CHANGELOG[unreleased..].find("\n## [1"))
-        .map(|off| unreleased + off)
-        .unwrap_or(CHANGELOG.len());
+        .map_or(CHANGELOG.len(), |off| unreleased + off);
     let unreleased_block = &CHANGELOG[unreleased..after_unreleased];
     assert!(
         unreleased_block.contains("BFLD"),
@@ -33,7 +32,9 @@ fn changelog_documents_bfld_entry_under_unreleased() {
 
 #[test]
 fn changelog_bfld_entry_cites_companion_adrs() {
-    for adr in ["ADR-118", "ADR-119", "ADR-120", "ADR-121", "ADR-122", "ADR-123"] {
+    for adr in [
+        "ADR-118", "ADR-119", "ADR-120", "ADR-121", "ADR-122", "ADR-123",
+    ] {
         assert!(
             CHANGELOG.contains(adr),
             "CHANGELOG BFLD entry must cite {adr}",
@@ -45,7 +46,10 @@ fn changelog_bfld_entry_cites_companion_adrs() {
 fn changelog_bfld_entry_names_three_structural_invariants() {
     let needles = ["**I1**", "**I2**", "**I3**"];
     for n in needles {
-        assert!(CHANGELOG.contains(n), "CHANGELOG must call out invariant {n}");
+        assert!(
+            CHANGELOG.contains(n),
+            "CHANGELOG must call out invariant {n}"
+        );
     }
 }
 

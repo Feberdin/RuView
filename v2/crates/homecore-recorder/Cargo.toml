@@ -31,13 +31,10 @@ homecore = { path = "../homecore", version = "0.1.0-alpha.0" }
 # Async runtime
 tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "time", "macros"] }
 
-# SQLite via sqlx — only the lite feature set; no postgres, no tls
-sqlx = { version = "0.8.1", default-features = false, features = [
-    "runtime-tokio-native-tls",
-    "sqlite",
-    "chrono",
-    "uuid",
-] }
+# SQLite through SQLx's driver crates directly. Avoiding the facade prevents
+# unused MySQL/RSA code from entering the lockfile and keeps TLS out entirely.
+sqlx-core = { version = "=0.8.6", default-features = false, features = ["_rt-tokio", "_tls-none"] }
+sqlx-sqlite = { version = "=0.8.6", default-features = false, features = ["bundled", "chrono", "uuid"] }
 
 # Serialisation
 serde       = { version = "1", features = ["derive"] }

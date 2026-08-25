@@ -2,7 +2,7 @@
 //!
 //! Holds at most [`RING_CAPACITY`] (default 64) embeddings. When full, `push`
 //! evicts and returns the oldest entry so its `Drop` runs and the f32 storage
-//! is zeroized. `drain()` is the explicit "rotate site_salt" hook from the
+//! is zeroized. `drain()` is the explicit "rotate `site_salt`" hook from the
 //! coherence-gate `Recalibrate` action (ADR-121 §2.4): it clears every slot
 //! at once. The ring is `no_std`-compatible; no heap allocation.
 
@@ -17,7 +17,7 @@ pub struct EmbeddingRing {
     slots: [Option<IdentityEmbedding>; RING_CAPACITY],
     /// Index of the oldest slot — the next eviction target.
     head: usize,
-    /// Number of currently-occupied slots (0..=RING_CAPACITY).
+    /// Number of currently-occupied slots (`0..=RING_CAPACITY`).
     count: usize,
 }
 

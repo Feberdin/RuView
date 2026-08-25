@@ -5,9 +5,9 @@
 #   - PluginRuntime trait + InProcessRuntime (native Rust, first-party plugins)
 #   - PluginRegistry (load / unload / list)
 #
-# P2 will add the `wasmtime` feature (gated below, default-off) for the real
-# Wasmtime JIT sandbox. wasm3 interpretation mode lands behind `--features wasm3`
-# in P3 for constrained-hardware targets.
+# P2 adds the `wasmtime` feature (gated below, default-off) for the real
+# Wasmtime JIT sandbox. The abandoned wasm3 placeholder was removed because
+# no maintained, patched release exists and no runtime implementation used it.
 
 [package]
 name = "homecore-plugins"
@@ -27,8 +27,6 @@ default = []
 # P2: real Wasmtime JIT sandbox (Cranelift; ~15 MB binary delta on Pi 5).
 # Do not enable in production until the host ABI is frozen (ADR-128 §8 risk).
 wasmtime = ["dep:wasmtime"]
-# P3: wasm3 interpretation mode for constrained hardware (~50 kB).
-wasm3 = ["dep:wasm3"]
 
 [dependencies]
 # HOMECORE state machine — local path (ADR-127).
@@ -51,12 +49,9 @@ serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
 
 # Optional Wasmtime runtime (P2, default-off — 30 MB dep).
-# Bumped from 25.0.3 → 42 to remediate RUSTSEC-2026-0095 and RUSTSEC-2026-0096
+# Bumped from 25.0.3 through 43.0.2 to remediate the published sandbox escapes
 # (Cranelift/Winch sandbox-escape CVEs, CVSS 9.0 — iter-11 security sprint HC-03/04).
-wasmtime = { version = "42", optional = true }
-
-# Optional wasm3 interpretation runtime (P3, default-off).
-wasm3 = { version = "0.3", optional = true }
+wasmtime = { version = "47.0.4", default-features = false, features = ["cranelift", "runtime", "std"], optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "time", "macros", "test-util"] }

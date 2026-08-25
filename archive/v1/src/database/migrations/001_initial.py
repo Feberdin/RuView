@@ -6,6 +6,8 @@ Revises:
 Create Date: 2025-01-07 07:58:00.000000
 """
 
+import uuid
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -245,16 +247,16 @@ def upgrade():
         if table not in allowed_tables:
             continue
         
-        # Use parameterized query with SQLAlchemy's text() and bindparam
-        # Note: For table names in DDL, we validate against whitelist
-        # SQLAlchemy's op.execute with text() is safe when table names are whitelisted
-        op.execute(
-            sa.text(f"""
+        # DDL identifiers cannot be bind parameters. The name is selected only
+        # from the closed whitelist above, then sent through the driver's DDL
+        # API rather than SQLAlchemy's generic text execution path.
+        op.get_bind().exec_driver_sql(
+            f"""
                 CREATE TRIGGER update_{table}_updated_at
                     BEFORE UPDATE ON {table}
                     FOR EACH ROW
                     EXECUTE FUNCTION update_updated_at_column();
-            """)
+            """
         )
     
     # Insert initial data
@@ -278,9 +280,8 @@ def downgrade():
         if table not in allowed_tables:
             continue
         
-        # Use parameterized query with SQLAlchemy's text()
-        op.execute(
-            sa.text(f"DROP TRIGGER IF EXISTS update_{table}_updated_at ON {table};")
+        op.get_bind().exec_driver_sql(
+            f"DROP TRIGGER IF EXISTS update_{table}_updated_at ON {table};"
         )
     
     # Drop function
@@ -356,44 +357,33 @@ def _insert_initial_data():
         ('cpu_usage', 'gauge', 0.0, 'percent', 'system', 'cpu'),
     ]
     
-    for metric_name, metric_type, value, unit, source, component in metrics_data:
-        # Use parameterized query to prevent SQL injection
-        # Escape single quotes in string values
-        safe_metric_name = metric_name.replace("'", "''")
-        safe_metric_type = metric_type.replace("'", "''")
-        safe_unit = unit.replace("'", "''") if unit else ''
-        safe_source = source.replace("'", "''") if source else ''
-        safe_component = component.replace("'", "''") if component else ''
-        safe_description = f'Initial {safe_metric_name} metric'.replace("'", "''")
-        
-        # Use SQLAlchemy's text() with proper escaping
-        op.execute(
-            sa.text(f"""
-                INSERT INTO system_metrics (
-                    id, metric_name, metric_type, value, unit, source, component,
-                    description, metadata
-                ) VALUES (
-                    gen_random_uuid(),
-                    :metric_name,
-                    :metric_type,
-                    :value,
-                    :unit,
-                    :source,
-                    :component,
-                    :description,
-                    :metadata
-                )
-            """).bindparams(
-                metric_name=safe_metric_name,
-                metric_type=safe_metric_type,
-                value=value,
-                unit=safe_unit,
-                source=safe_source,
-                component=safe_component,
-                description=safe_description,
-                metadata='{"initial": true, "version": "1.0.0"}'
-            )
-        )
+    metrics_table = sa.table(
+        "system_metrics",
+        sa.column("id", postgresql.UUID(as_uuid=True)),
+        sa.column("metric_name", sa.String()),
+        sa.column("metric_type", sa.String()),
+        sa.column("value", sa.Float()),
+        sa.column("unit", sa.String()),
+        sa.column("source", sa.String()),
+        sa.column("component", sa.String()),
+        sa.column("description", sa.Text()),
+        sa.column("metadata", sa.JSON()),
+    )
+    rows = [
+        {
+            "id": uuid.uuid4(),
+            "metric_name": metric_name,
+            "metric_type": metric_type,
+            "value": value,
+            "unit": unit,
+            "source": source,
+            "component": component,
+            "description": f"Initial {metric_name} metric",
+            "metadata": {"initial": True, "version": "1.0.0"},
+        }
+        for metric_name, metric_type, value, unit, source, component in metrics_data
+    ]
+    op.get_bind().execute(sa.insert(metrics_table), rows)
     
     # Insert initial audit log
     op.execute("""

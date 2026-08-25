@@ -9,8 +9,6 @@
 #     deployment-specific target-port change.
 #   - Logs are bounded; inspect them through the Unraid Deployment Broker first.
 
-version: "3.9"
-
 services:
   sensing-server:
     build:
@@ -18,6 +16,26 @@ services:
       dockerfile: docker/Dockerfile.rust
     image: ruvnet/wifi-densepose:latest
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 2g
+    cpus: 2.0
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:3000/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     logging:
       driver: json-file
       options:
@@ -26,8 +44,8 @@ services:
     ports:
       # Host ports 3000 and 8080 are commonly used on Unraid. Use the 830x
       # range so this stack can run beside Gotenberg, SecondBrain, and other apps.
-      - "8300:3000"   # REST API and bundled UI
-      - "8301:3001"   # WebSocket
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:8300:3000"   # Set an explicit LAN IP for hardware use
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:8301:3001"   # WebSocket
       # ESP32 UDP. On Linux/macOS this works with multiple ESP32 nodes out of
       # the box. On Docker Desktop for Windows, multi-source UDP is collapsed
       # to one source IP at the WSL/Hyper-V boundary, so all-but-one node's
@@ -39,7 +57,7 @@ services:
       #   python scripts/udp-relay.py --listen-port 5005 --forward-port 5006
       #
       # See docs/TROUBLESHOOTING.md §9 for details.
-      - "5005:5005/udp"
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:5005:5005/udp"
     environment:
       - RUST_LOG=info
       # CSI_SOURCE controls the data source for the sensing server.
@@ -64,13 +82,37 @@ services:
       dockerfile: docker/Dockerfile.python
     image: ruvnet/wifi-densepose:python
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 2g
+    cpus: 2.0
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
     ports:
-      - "8765:8765"   # WebSocket
-      - "8302:8080"   # UI, if a Python UI server is enabled later
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:8765:8765"   # WebSocket
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:8302:8080"   # UI, if a Python UI server is enabled later
     environment:
       - PYTHONUNBUFFERED=1

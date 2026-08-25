@@ -18,14 +18,14 @@ fn salt(seed: u8) -> [u8; SITE_SALT_LEN] {
 fn embedding(seed: u8) -> IdentityEmbedding {
     let mut a = [0.0f32; EMBEDDING_DIM];
     for (i, v) in a.iter_mut().enumerate() {
-        *v = (i as f32 + seed as f32) * 0.001;
+        *v = (i as f32 + f32::from(seed)) * 0.001;
     }
     IdentityEmbedding::from_raw(a)
 }
 
 fn inputs(seed: u8) -> SensingInputs {
     SensingInputs {
-        timestamp_ns: 1_700_000_000_000_000_000 + (seed as u64) * 1_000_000_000,
+        timestamp_ns: 1_700_000_000_000_000_000 + u64::from(seed) * 1_000_000_000,
         presence: true,
         motion: 0.5,
         person_count: 1,
@@ -50,7 +50,10 @@ fn installed_hasher_overrides_caller_supplied_hash() {
     let mut e = BfldEmitter::new("seed-01").with_signature_hasher(SignatureHasher::new(salt(7)));
     let out = e.emit(inputs(0), Some(embedding(0))).unwrap();
     let hash = out.rf_signature_hash.unwrap();
-    assert_ne!(hash, [0xFF; 32], "derived hash must override caller-supplied");
+    assert_ne!(
+        hash, [0xFF; 32],
+        "derived hash must override caller-supplied"
+    );
     assert_ne!(hash, [0x00; 32], "derived hash must be non-trivial");
 }
 
@@ -86,8 +89,10 @@ fn no_embedding_falls_back_to_risk_factor_bytes() {
 
 #[test]
 fn fallback_hash_differs_from_embedding_hash() {
-    let mut e_with = BfldEmitter::new("seed-01").with_signature_hasher(SignatureHasher::new(salt(9)));
-    let mut e_without = BfldEmitter::new("seed-01").with_signature_hasher(SignatureHasher::new(salt(9)));
+    let mut e_with =
+        BfldEmitter::new("seed-01").with_signature_hasher(SignatureHasher::new(salt(9)));
+    let mut e_without =
+        BfldEmitter::new("seed-01").with_signature_hasher(SignatureHasher::new(salt(9)));
     let with_emb = e_with.emit(inputs(0), Some(embedding(0))).unwrap();
     let no_emb = e_without.emit(inputs(0), None).unwrap();
     assert_ne!(

@@ -38,7 +38,6 @@ export function csiCommand(cli: Argv): void {
         );
 
         // Streaming poll loop.
-        // eslint-disable-next-line no-constant-condition
         while (true) {
           const result = await sensingGet<object>(
             baseUrl,

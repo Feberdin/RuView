@@ -99,7 +99,7 @@ class APIKeyAuth:
 ```bash
 # API Key in header
 curl -X GET http://localhost:8000/api/v1/pose/current \
-  -H "X-API-Key: your-api-key-here"
+  -H "X-API-Key: ${RUVIEW_API_KEY}"
 ```
 
 ### Token Blacklist

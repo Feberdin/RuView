@@ -7,7 +7,8 @@ broadcasts three structured message types over `ws://<host>:<port>/ws/sensing`:
 |---|---|---|
 | `connection_established` | 2596 | `{node_id, version, capabilities}` |
 | `pose_data` | 2655 | `{node_id, timestamp, persons: [...], confidence}` |
-| `edge_vitals` | 4548 | `{node_id, presence, fall_detected, motion, breathing_rate_bpm, heartrate_bpm, ...}` |
+| `edge_vitals` | 4548 | `{node_id, presence, fall_detected,` |
+| | | `motion, breathing_rate_bpm, heartrate_bpm, ...}` |
 
 `SensingClient` is a pure-Python asyncio wrapper around `websockets>=12`
 that connects, decodes JSON, and yields typed dataclasses.
@@ -33,13 +34,14 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Optional
+from typing import Any
 
 # Defer import — only fail at construction time, not at module load.
 try:
-    import websockets  # type: ignore[import-not-found]
-    from websockets.exceptions import ConnectionClosed  # type: ignore[import-not-found]
+    import websockets
+    from websockets.exceptions import ConnectionClosed
     _WEBSOCKETS_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _WEBSOCKETS_AVAILABLE = False
@@ -79,12 +81,12 @@ class EdgeVitalsMessage(SensingMessage):
     presence: bool = False
     fall_detected: bool = False
     motion: float = 0.0
-    breathing_rate_bpm: Optional[float] = None
-    heartrate_bpm: Optional[float] = None
+    breathing_rate_bpm: float | None = None
+    heartrate_bpm: float | None = None
     n_persons: int = 0
     motion_energy: float = 0.0
     presence_score: float = 0.0
-    rssi: Optional[float] = None
+    rssi: float | None = None
 
 
 @dataclass(frozen=True)
@@ -193,7 +195,7 @@ class SensingClient:
         self._max_size = max_size
         self._ws: Any = None  # websockets.WebSocketClientProtocol — typed Any to avoid import cost
 
-    async def __aenter__(self) -> "SensingClient":
+    async def __aenter__(self) -> SensingClient:
         self._ws = await websockets.connect(
             self.url,
             ping_interval=self._ping_interval,
@@ -242,7 +244,7 @@ class SensingClient:
             raise RuntimeError("SensingClient not connected. Use `async with` first.")
         await self._ws.send(json.dumps({"type": "ping"}))
 
-    async def recv_one(self, *, timeout: Optional[float] = None) -> SensingMessage:
+    async def recv_one(self, *, timeout: float | None = None) -> SensingMessage:
         """Receive a single decoded message. Convenience for short
         scripts and tests that don't need an async generator."""
         if self._ws is None:

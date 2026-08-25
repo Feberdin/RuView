@@ -22,3 +22,5 @@ export const ThemedView = forwardRef<View, ThemedViewProps>(({ children, style, 
     </View>
   );
 });
+
+ThemedView.displayName = 'ThemedView';

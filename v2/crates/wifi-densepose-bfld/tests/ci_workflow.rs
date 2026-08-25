@@ -1,13 +1,11 @@
 //! Structural validation for `.github/workflows/bfld-mqtt-integration.yml`.
 //! Same pattern as iter-30's HA blueprint tests: embed via `include_str!`,
-//! string-check the key fields. Avoids adding a serde_yaml dep just to lint
+//! string-check the key fields. Avoids adding a `serde_yaml` dep just to lint
 //! a CI workflow.
 
 #![cfg(feature = "std")]
 
-const WORKFLOW: &str = include_str!(
-    "../../../../.github/workflows/bfld-mqtt-integration.yml"
-);
+const WORKFLOW: &str = include_str!("../../../../.github/workflows/bfld-mqtt-integration.yml");
 
 #[test]
 fn workflow_declares_mosquitto_service_container() {

@@ -104,12 +104,12 @@ Test it:
 
 ```bash
 # List states
-curl -H "Authorization: Bearer longlivedtoken" \
+curl -H "Authorization: Bearer ${HOMECORE_TOKEN}" \
   http://localhost:8123/api/states
 
 # Set a light to "on"
 curl -X POST \
-  -H "Authorization: Bearer longlivedtoken" \
+  -H "Authorization: Bearer ${HOMECORE_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"state":"on","attributes":{"brightness":200}}' \
   http://localhost:8123/api/states/light.kitchen

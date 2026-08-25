@@ -1,5 +1,15 @@
 # π RuView
 
+> [!IMPORTANT]
+> This is the security-hardened [`Feberdin/RuView`](https://github.com/Feberdin/RuView)
+> fork of [`ruvnet/RuView`](https://github.com/ruvnet/RuView). The fork relationship
+> is intentionally preserved so upstream changes remain traceable. Feberdin-specific
+> dependency, CI, secret-protection, and operating guidance is documented in
+> [`SECURITY.md`](SECURITY.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and the
+> [hardening record](docs/security/dependency-hardening.md).
+
+[![Dependency and secret security gate](https://github.com/Feberdin/RuView/actions/workflows/dependency-security.yml/badge.svg)](https://github.com/Feberdin/RuView/actions/workflows/dependency-security.yml)
+
 <p align="center">
   <a href="https://cognitum.one/seed">
     <img src="assets/ruview-seed.png" alt="RuView - WiFi DensePose" width="100%">
@@ -86,7 +96,7 @@ python -m esptool --chip esp32s3 --port COM9 --baud 460800 \
   write_flash 0x0 bootloader.bin 0x8000 partition-table.bin \
   0xf000 ota_data_initial.bin 0x20000 esp32-csi-node.bin
 python firmware/esp32-csi-node/provision.py --port COM9 \
-  --ssid "YourWiFi" --password "secret" --target-ip 192.168.1.20
+  --ssid "YourWiFi" --password "<WIFI_PASSWORD>" --target-ip 192.168.1.20
 
 # Option 2b: WiFi 6 + 802.15.4 research sensing with ESP32-C6 ($6-10, ADR-110)
 # Same csi-node firmware compiled for the C6 target — picks up the C6

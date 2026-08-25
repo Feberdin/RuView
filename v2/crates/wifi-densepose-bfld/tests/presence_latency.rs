@@ -86,19 +86,15 @@ fn process_call_p95_latency_meets_debug_floor() {
 
     assert!(
         p95 <= DEBUG_P95_FLOOR,
-        "p95 latency {:?} exceeded debug floor {:?} — possible regression \
+        "p95 latency {p95:?} exceeded debug floor {DEBUG_P95_FLOOR:?} — possible regression \
          (accidental I/O on the hot path, debug-build optimization regression)",
-        p95,
-        DEBUG_P95_FLOOR,
     );
 
     // ADR-119 AC2 documented target — debug build easily satisfies it
     // since DEBUG_P95_FLOOR is 100ms and AC2 is 1s.
     assert!(
         p95 <= ADR_119_AC2_P95_TARGET,
-        "p95 latency {:?} exceeds ADR-119 AC2 ({:?})",
-        p95,
-        ADR_119_AC2_P95_TARGET,
+        "p95 latency {p95:?} exceeds ADR-119 AC2 ({ADR_119_AC2_P95_TARGET:?})",
     );
 }
 
@@ -113,14 +109,16 @@ fn first_call_after_pipeline_construction_is_not_pathologically_slow() {
     let _evt = pipeline.process(inputs(1_000_000), Some(embedding()));
     let first_call = start.elapsed();
 
-    eprintln!("first-call latency: {:.3}µs", first_call.as_secs_f64() * 1e6);
+    eprintln!(
+        "first-call latency: {:.3}µs",
+        first_call.as_secs_f64() * 1e6
+    );
     // First call is allowed to be slower than steady-state but still
     // bounded — 250ms catches a real warm-up bug without flaking.
     assert!(
         first_call < Duration::from_millis(250),
-        "first-call latency {:?} suggests lazy initialization in process() \
+        "first-call latency {first_call:?} suggests lazy initialization in process() \
          path — operators see this as boot-time delay",
-        first_call,
     );
 }
 

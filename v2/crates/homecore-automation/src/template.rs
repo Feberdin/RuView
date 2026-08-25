@@ -116,7 +116,12 @@ mod tests {
 
     fn sm_with(entity_id: &str, state: &str, attrs: serde_json::Value) -> Arc<StateMachine> {
         let sm = Arc::new(StateMachine::new());
-        sm.set(EntityId::parse(entity_id).unwrap(), state, attrs, Context::new());
+        sm.set(
+            EntityId::parse(entity_id).unwrap(),
+            state,
+            attrs,
+            Context::new(),
+        );
         sm
     }
 
@@ -144,7 +149,9 @@ mod tests {
             serde_json::json!({"brightness": 200}),
         );
         let env = TemplateEnvironment::new(sm);
-        let out = env.render("{{ state_attr('light.kitchen', 'brightness') }}").unwrap();
+        let out = env
+            .render("{{ state_attr('light.kitchen', 'brightness') }}")
+            .unwrap();
         assert_eq!(out.trim(), "200");
     }
 
@@ -153,7 +160,9 @@ mod tests {
         let sm = sm_with("switch.fan", "on", serde_json::json!({}));
         let env = TemplateEnvironment::new(sm);
         let out = env.render("{{ is_state('switch.fan', 'on') }}").unwrap();
-        assert_eq!(out.trim(), "true");
+        // Home Assistant uses Jinja's Python-style boolean rendering. Current
+        // MiniJinja intentionally matches that `True`/`False` representation.
+        assert_eq!(out.trim(), "True");
     }
 
     #[test]
@@ -161,7 +170,7 @@ mod tests {
         let sm = sm_with("switch.fan", "off", serde_json::json!({}));
         let env = TemplateEnvironment::new(sm);
         let out = env.render("{{ is_state('switch.fan', 'on') }}").unwrap();
-        assert_eq!(out.trim(), "false");
+        assert_eq!(out.trim(), "False");
     }
 
     #[test]

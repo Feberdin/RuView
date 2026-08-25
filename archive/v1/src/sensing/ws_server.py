@@ -24,6 +24,7 @@ import asyncio
 import json
 import logging
 import math
+import os
 import signal
 import socket
 import struct
@@ -217,7 +218,13 @@ def probe_esp32_udp(port: int = ESP32_UDP_PORT, timeout: float = 2.0) -> bool:
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.settimeout(timeout)
     try:
-        sock.bind(("0.0.0.0", port))
+        # This receive-only probe defaults to all local interfaces so it can
+        # observe ESP32 broadcasts. Operators can restrict it to one local
+        # address without changing code; the socket never sends a response.
+        bind_address = os.environ.get(
+            "RUVIEW_ESP32_DISCOVERY_BIND_ADDRESS", "0.0.0.0"
+        )
+        sock.bind((bind_address, port))
         data, _ = sock.recvfrom(256)
         if len(data) >= 20:
             magic = struct.unpack_from('<I', data, 0)[0]

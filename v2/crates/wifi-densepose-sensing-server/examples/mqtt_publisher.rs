@@ -41,8 +41,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[cfg(feature = "mqtt")]
-use clap::Parser;
-#[cfg(feature = "mqtt")]
 use tokio::sync::broadcast;
 #[cfg(feature = "mqtt")]
 use tracing::info;

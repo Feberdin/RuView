@@ -8,7 +8,6 @@ import type { Argv } from "yargs";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, appendFileSync, openSync } from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { spawn } from "node:child_process";
 import { loadConfig } from "../config.js";
 

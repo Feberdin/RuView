@@ -74,7 +74,7 @@ fn handle_example_lifecycle_produces_expected_message_counts() {
             inputs: SensingInputs {
                 timestamp_ns,
                 presence: true,
-                motion: 0.3 + (i as f32) * 0.1,
+                motion: (i as f32).mul_add(0.1, 0.3),
                 person_count: 1,
                 sensing_confidence: 0.9,
                 sep: 0.2,
@@ -97,13 +97,11 @@ fn handle_example_lifecycle_produces_expected_message_counts() {
 
     // Expected: 1 online + 6 discovery + 5 × 5 state + 1 offline = 33.
     assert_eq!(
-        total, 33,
+        total,
+        33,
         "expected 33 total messages from full lifecycle, got {total}; \
          topics: {:?}",
-        log.published
-            .iter()
-            .map(|m| &m.topic)
-            .collect::<Vec<_>>(),
+        log.published.iter().map(|m| &m.topic).collect::<Vec<_>>(),
     );
 
     // First message is the online availability.
@@ -114,7 +112,5 @@ fn handle_example_lifecycle_produces_expected_message_counts() {
 
 #[test]
 fn handle_example_returns_box_dyn_error_for_main_signature() {
-    assert!(
-        HANDLE_EXAMPLE.contains("fn main() -> Result<(), Box<dyn std::error::Error>>"),
-    );
+    assert!(HANDLE_EXAMPLE.contains("fn main() -> Result<(), Box<dyn std::error::Error>>"),);
 }

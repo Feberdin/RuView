@@ -35,7 +35,7 @@ pub struct RumqttPublisher {
 }
 
 impl RumqttPublisher {
-    /// Wrap an existing `Client` at the supplied QoS. `retain = false` matches
+    /// Wrap an existing `Client` at the supplied `QoS`. `retain = false` matches
     /// HA-DISCO state-topic semantics (retained payloads cause stale-state
     /// flapping on broker reconnect). For availability-style topics callers
     /// should construct a separate publisher with `retain = true`.
@@ -66,7 +66,7 @@ impl RumqttPublisher {
 
     /// Like [`Self::connect`] but also configures the MQTT Last Will and
     /// Testament so the broker auto-publishes `"offline"` on
-    /// `ruview/<node_id>/bfld/availability` (retained, QoS 1) when the
+    /// `ruview/<node_id>/bfld/availability` (retained, `QoS` 1) when the
     /// publisher's TCP session drops without a clean DISCONNECT.
     ///
     /// Pairs with [`crate::publish_availability_online`] — call that on first

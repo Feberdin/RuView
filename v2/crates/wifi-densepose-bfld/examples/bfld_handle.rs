@@ -1,12 +1,12 @@
 //! Worker-thread BFLD example — the production-recommended pattern.
 //!
 //! Demonstrates the full operator lifecycle:
-//!   1. publish_availability_online (retained) → HA marks device online
-//!   2. publish_discovery (retained) → HA auto-creates 6 BFLD entities
-//!   3. BfldPipelineHandle::spawn → worker owns gate + ring + hasher
+//!   1. `publish_availability_online` (retained) → HA marks device online
+//!   2. `publish_discovery` (retained) → HA auto-creates 6 BFLD entities
+//!   3. `BfldPipelineHandle::spawn` → worker owns gate + ring + hasher
 //!   4. handle.send(input) per BFI frame → worker process + publish
-//!   5. handle.shutdown() → clean worker join
-//!   6. publish_availability_offline → HA marks device offline
+//!   5. `handle.shutdown()` → clean worker join
+//!   6. `publish_availability_offline` → HA marks device offline
 //!
 //! Run with:
 //! ```sh
@@ -40,7 +40,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // them up on reconnect.
     // ----------------------------------------------------------------
     publish_availability_online(&mut publisher.clone(), node_id)?;
-    let discovery_count = publish_discovery(&mut publisher.clone(), node_id, PrivacyClass::Anonymous)?;
+    let discovery_count =
+        publish_discovery(&mut publisher.clone(), node_id, PrivacyClass::Anonymous)?;
     println!("bootstrap: 1 availability + {discovery_count} discovery payloads");
 
     // ----------------------------------------------------------------
@@ -68,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             inputs: SensingInputs {
                 timestamp_ns,
                 presence: true,
-                motion: 0.3 + (i as f32) * 0.1,
+                motion: (i as f32).mul_add(0.1, 0.3),
                 person_count: 1,
                 sensing_confidence: 0.9,
                 sep: 0.2,
@@ -102,7 +103,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  {}", msg.topic);
     }
     println!("last three topics:");
-    for msg in log.published.iter().rev().take(3).collect::<Vec<_>>().iter().rev() {
+    for msg in log
+        .published
+        .iter()
+        .rev()
+        .take(3)
+        .collect::<Vec<_>>()
+        .iter()
+        .rev()
+    {
         println!("  {}", msg.topic);
     }
     Ok(())

@@ -1,0 +1,10 @@
+appId: com.ruvnet.wifidensepose
+name: MAT screen clearly labels simulated emergency data
+---
+- launchApp:
+    clearState: true
+- tapOn: "MAT"
+- assertVisible: "SIMULATED DATA"
+- assertVisible: "NOT CONNECTED TO REAL SENSORS.*"
+- tapOn: "I UNDERSTAND"
+- assertVisible: ".*SURVIVORS DETECTED"

@@ -26,9 +26,7 @@ use std::collections::HashMap;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
-use wifi_densepose_core::{
-    BoundingBox, Confidence, KeypointType, PersonPose, PoseEstimate,
-};
+use wifi_densepose_core::{BoundingBox, Confidence, KeypointType, PersonPose, PoseEstimate};
 
 use super::keypoint::{PyKeypoint, PyKeypointType};
 
@@ -45,7 +43,7 @@ use super::keypoint::{PyKeypoint, PyKeypointType};
 /// bb2 = BoundingBox.from_center(0.3, 0.45, 0.4, 0.5)
 /// print(bb.iou(bb2))
 /// ```
-#[pyclass(frozen, name = "BoundingBox")]
+#[pyclass(from_py_object, frozen, name = "BoundingBox")]
 #[derive(Clone)]
 pub struct PyBoundingBox {
     inner: BoundingBox,
@@ -55,31 +53,51 @@ pub struct PyBoundingBox {
 impl PyBoundingBox {
     #[new]
     fn new(x_min: f32, y_min: f32, x_max: f32, y_max: f32) -> Self {
-        Self { inner: BoundingBox::new(x_min, y_min, x_max, y_max) }
+        Self {
+            inner: BoundingBox::new(x_min, y_min, x_max, y_max),
+        }
     }
 
     /// Construct from center point + width + height.
     #[staticmethod]
     fn from_center(cx: f32, cy: f32, width: f32, height: f32) -> Self {
-        Self { inner: BoundingBox::from_center(cx, cy, width, height) }
+        Self {
+            inner: BoundingBox::from_center(cx, cy, width, height),
+        }
     }
 
     #[getter]
-    fn x_min(&self) -> f32 { self.inner.x_min }
+    fn x_min(&self) -> f32 {
+        self.inner.x_min
+    }
     #[getter]
-    fn y_min(&self) -> f32 { self.inner.y_min }
+    fn y_min(&self) -> f32 {
+        self.inner.y_min
+    }
     #[getter]
-    fn x_max(&self) -> f32 { self.inner.x_max }
+    fn x_max(&self) -> f32 {
+        self.inner.x_max
+    }
     #[getter]
-    fn y_max(&self) -> f32 { self.inner.y_max }
+    fn y_max(&self) -> f32 {
+        self.inner.y_max
+    }
     #[getter]
-    fn width(&self) -> f32 { self.inner.width() }
+    fn width(&self) -> f32 {
+        self.inner.width()
+    }
     #[getter]
-    fn height(&self) -> f32 { self.inner.height() }
+    fn height(&self) -> f32 {
+        self.inner.height()
+    }
     #[getter]
-    fn area(&self) -> f32 { self.inner.area() }
+    fn area(&self) -> f32 {
+        self.inner.area()
+    }
     #[getter]
-    fn center(&self) -> (f32, f32) { self.inner.center() }
+    fn center(&self) -> (f32, f32) {
+        self.inner.center()
+    }
 
     /// Intersection over Union (IoU) with another box. Range [0.0, 1.0].
     fn iou(&self, other: &PyBoundingBox) -> f32 {
@@ -121,7 +139,7 @@ impl PyBoundingBox {
 /// print(pose.get_keypoint(KeypointType.Nose).confidence)  # 0.95
 /// print(pose.compute_bounding_box())          # auto-derived from visible kp
 /// ```
-#[pyclass(name = "PersonPose")]
+#[pyclass(from_py_object, name = "PersonPose")]
 #[derive(Clone)]
 pub struct PyPersonPose {
     inner: PersonPose,
@@ -133,7 +151,9 @@ impl PyPersonPose {
     /// the dedicated methods.
     #[new]
     fn new() -> Self {
-        Self { inner: PersonPose::new() }
+        Self {
+            inner: PersonPose::new(),
+        }
     }
 
     /// Per-person track ID. None until set.
@@ -162,21 +182,17 @@ impl PyPersonPose {
     /// All keypoints as a dict keyed by KeypointType. Missing
     /// keypoints are omitted (NOT included with None values).
     fn keypoints<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        // PyO3 0.22 — PyDict::new_bound returns a Bound, the legacy
-        // PyDict::new (returning &PyDict) was removed in 0.21.
-        let dict = PyDict::new_bound(py);
+        // PyO3 0.29 returns a lifetime-bound dictionary directly. Creating
+        // Python-owned wrappers explicitly keeps key/value ownership clear.
+        let dict = PyDict::new(py);
         for (i, kp_opt) in self.inner.keypoints.iter().enumerate() {
             if let Some(kp) = kp_opt {
                 let kpt = match KeypointType::all().get(i) {
                     Some(t) => *t,
                     None => continue,
                 };
-                // Convert through IntoPy to satisfy ToPyObject bound
-                // for dict.set_item — #[pyclass] types impl IntoPy but
-                // not ToPyObject directly in PyO3 0.22.
-                use pyo3::IntoPy;
-                let k_obj: PyObject = PyKeypointType::from_rust(kpt).into_py(py);
-                let v_obj: PyObject = PyKeypoint::from_rust(*kp).into_py(py);
+                let k_obj = Py::new(py, PyKeypointType::from_rust(kpt))?;
+                let v_obj = Py::new(py, PyKeypoint::from_rust(*kp))?;
                 dict.set_item(k_obj, v_obj)?;
             }
         }
@@ -224,9 +240,8 @@ impl PyPersonPose {
     }
 
     fn set_confidence(&mut self, c: f32) -> PyResult<()> {
-        self.inner.confidence = Confidence::new(c).map_err(|e| {
-            pyo3::exceptions::PyValueError::new_err(e.to_string())
-        })?;
+        self.inner.confidence = Confidence::new(c)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(())
     }
 
@@ -277,19 +292,11 @@ impl PyPoseEstimate {
         latency_ms: f32,
         model_version: String,
     ) -> PyResult<Self> {
-        let conf = Confidence::new(confidence).map_err(|e| {
-            pyo3::exceptions::PyValueError::new_err(e.to_string())
-        })?;
-        let rust_persons: Vec<PersonPose> =
-            persons.into_iter().map(|p| p.inner).collect();
+        let conf = Confidence::new(confidence)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        let rust_persons: Vec<PersonPose> = persons.into_iter().map(|p| p.inner).collect();
         Ok(Self {
-            inner: PoseEstimate::new(
-                Vec::new(),
-                rust_persons,
-                conf,
-                latency_ms,
-                model_version,
-            ),
+            inner: PoseEstimate::new(Vec::new(), rust_persons, conf, latency_ms, model_version),
         })
     }
 
@@ -313,7 +320,12 @@ impl PyPoseEstimate {
 
     #[getter]
     fn persons(&self) -> Vec<PyPersonPose> {
-        self.inner.persons.iter().cloned().map(PyPersonPose::from_rust).collect()
+        self.inner
+            .persons
+            .iter()
+            .cloned()
+            .map(PyPersonPose::from_rust)
+            .collect()
     }
 
     #[getter]

@@ -50,7 +50,7 @@ jobs:
     name: build · push · smoke-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           submodules: recursive
 
@@ -58,9 +58,9 @@ jobs:
       # linux/arm64 layer below (Dockerfile.rust is arch-agnostic — no `--target`
       # flag — so buildx + QEMU is all that's needed; arm64 builds are emulated
       # by the runner, not built on a separate arm64 host).
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       # Why this exists: forks do not own the upstream `ruvnet` Docker Hub
       # namespace and must not fail merely because those optional credentials
@@ -102,7 +102,7 @@ jobs:
 
       - name: Log in to Docker Hub
         if: steps.targets.outputs.dockerhub_enabled == 'true'
-        # Bypassing docker/login-action@v3: the action kept emitting
+        # Bypassing docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9: the action kept emitting
         # "malformed HTTP Authorization header" against a known-good
         # dckr_pat_* token (verified by direct curl against the Hub API).
         # `docker login --password-stdin` is the documented credential
@@ -114,7 +114,7 @@ jobs:
           printf '%s' "$DH_TOKEN" | docker login docker.io -u "$DH_USER" --password-stdin
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -122,7 +122,7 @@ jobs:
 
       - name: Compute tags
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ steps.targets.outputs.images }}
           tags: |
@@ -133,7 +133,7 @@ jobs:
 
       - name: Build + push
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: .
           file: docker/Dockerfile.rust
@@ -183,10 +183,11 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="ghcr.io/feberdin/wifi-densepose:sha-${GITHUB_SHA::7}"
+          TEST_AUTH_TOKEN="$(openssl rand -hex 32)"
           docker run -d --name auth \
             -p 3000:3000 \
             -e CSI_SOURCE=simulated \
-            -e RUVIEW_API_TOKEN=smoke-test-token-do-not-use \
+            -e RUVIEW_API_TOKEN="$TEST_AUTH_TOKEN" \
             "$IMAGE"
           for _ in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1; then break; fi
@@ -201,7 +202,7 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer wrong' http://127.0.0.1:3000/api/v1/info)
           test "$code" = "401" || { echo "expected 401 (wrong token), got $code"; exit 1; }
           # Correct bearer → 200.
-          curl -fsS -H 'Authorization: Bearer smoke-test-token-do-not-use' http://127.0.0.1:3000/api/v1/info >/dev/null
+          curl -fsS -H "Authorization: Bearer ${TEST_AUTH_TOKEN}" http://127.0.0.1:3000/api/v1/info >/dev/null
           docker stop auth
 
       - name: Summary

@@ -10,7 +10,7 @@ use wifi_densepose_bfld::{
 fn embedding(seed: f32) -> IdentityEmbedding {
     let mut a = [0.0f32; EMBEDDING_DIM];
     for (i, v) in a.iter_mut().enumerate() {
-        *v = seed + (i as f32) * 0.001;
+        *v = (i as f32).mul_add(0.001, seed);
     }
     IdentityEmbedding::from_raw(a)
 }
@@ -42,7 +42,11 @@ fn embedding_canonical_bytes_match_manual_flatten() {
     let emb = embedding(0.7);
     let f = IdentityFeatures::from_embedding(&emb);
     let actual = f.canonical_bytes();
-    let expected: Vec<u8> = emb.as_slice().iter().flat_map(|x| x.to_le_bytes()).collect();
+    let expected: Vec<u8> = emb
+        .as_slice()
+        .iter()
+        .flat_map(|x| x.to_le_bytes())
+        .collect();
     assert_eq!(actual, expected);
 }
 
@@ -94,7 +98,7 @@ fn embedding_and_risk_factors_produce_different_hashes() {
 // --- backward compatibility regression (iter 16 wire format) -------------
 
 /// Iter 16 used inline `emb.as_slice().iter().flat_map(|f| f.to_le_bytes())`
-/// for the embedding path. Iter 18's IdentityFeatures must produce the
+/// for the embedding path. Iter 18's `IdentityFeatures` must produce the
 /// exact same hash for the same (salt, day, embedding) tuple — otherwise
 /// existing nodes would silently flip their `rf_signature_hash` value on
 /// upgrade.
@@ -105,7 +109,11 @@ fn iter_16_wire_compat_embedding_path() {
     let day_epoch = 12345;
 
     // Iter 16 manual computation:
-    let bytes_v16: Vec<u8> = emb.as_slice().iter().flat_map(|f| f.to_le_bytes()).collect();
+    let bytes_v16: Vec<u8> = emb
+        .as_slice()
+        .iter()
+        .flat_map(|f| f.to_le_bytes())
+        .collect();
     let hash_v16 = h.compute(day_epoch, &bytes_v16);
 
     // Iter 18 IdentityFeatures path:

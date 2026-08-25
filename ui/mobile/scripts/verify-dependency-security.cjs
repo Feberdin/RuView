@@ -1,11 +1,11 @@
 /**
- * Purpose: Prove that the mobile dependency tree uses the reviewed js-yaml and
- * shell-quote security releases without breaking their real consumers.
- * Input: A completed `npm ci --legacy-peer-deps` in ui/mobile plus npm registry
- * audit metadata. Output: concise success messages or an actionable failure.
+ * Purpose: Prove that the mobile dependency tree is audit-clean and that its
+ * reviewed transitive security replacements preserve their consumer APIs.
+ * Input: A completed `npm ci` in ui/mobile plus npm registry audit metadata.
+ * Output: concise success messages or an actionable failure.
  * Invariants: no credentials are read or printed; temporary files are removed;
- * unrelated npm advisories remain visible but cannot hide either package.
- * Debugging: run `npm ls js-yaml shell-quote --all`, then execute this file.
+ * all audit severities must remain at zero; no secret values are read or logged.
+ * Debugging: run `npm audit` and `npm ls uuid --all`, then this file.
  */
 
 'use strict';
@@ -15,11 +15,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { createRequire } = require('node:module');
 const { loadNycConfig } = require('@istanbuljs/load-nyc-config');
 const shellQuote = require('shell-quote');
 
 const EXPECTED_JS_YAML_VERSION = '4.3.1';
 const EXPECTED_SHELL_QUOTE_VERSION = '1.9.0';
+const EXPECTED_UUID_VERSION = '11.1.1';
 
 /** Why this exists: the npm override must resolve every consumer to the exact
  * reviewed security release, not merely add a second patched copy. */
@@ -149,9 +151,26 @@ async function verifyIstanbulYamlCompatibility() {
   }
 }
 
+/** Why this exists: xcode declares an old uuid range but only calls v4(). The
+ * global override removes the vulnerable release, while this consumer-level
+ * check proves the public function remains available and returns a valid UUID. */
+function verifyXcodeUuidCompatibility() {
+  const xcodeRequire = createRequire(require.resolve('xcode/package.json'));
+  const metadata = xcodeRequire('uuid/package.json');
+  const uuid = xcodeRequire('uuid');
+
+  assert.equal(metadata.version, EXPECTED_UUID_VERSION);
+  assert.equal(typeof uuid.v4, 'function');
+  assert.match(
+    uuid.v4(),
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+  console.log(`xcode-uuid-compatibility: ${metadata.version} (v4 API compatible)`);
+}
+
 /** Why this exists: package version checks alone do not prove that npm's current
- * advisory database considers the resolved package safe. Other known mobile
- * advisories remain visible without making this focused guard silently pass. */
+ * advisory database considers the complete resolved tree safe. Any severity
+ * must fail CI so a future transitive regression cannot be silently accepted. */
 function verifyNpmAuditResult() {
   const audit = spawnSync('npm', ['audit', '--json'], {
     cwd: path.resolve(__dirname, '..'),
@@ -173,25 +192,21 @@ function verifyNpmAuditResult() {
     throw new Error(`npm audit returned invalid JSON: ${error.message}`);
   }
 
-  for (const dependencyName of ['js-yaml', 'shell-quote']) {
-    const advisory = report.vulnerabilities?.[dependencyName];
-    assert.equal(
-      advisory,
-      undefined,
-      `npm still reports a ${dependencyName} advisory: ${JSON.stringify(advisory)}`,
-    );
-  }
-
   const counts = report.metadata?.vulnerabilities ?? {};
-  console.log(
-    `reviewed-dependency-audit: clear (other mobile advisories: ${counts.total ?? 'unknown'})`,
+  assert.equal(
+    audit.status,
+    0,
+    `npm audit failed with ${counts.total ?? 'unknown'} finding(s). Run npm audit for details.`,
   );
+  assert.equal(counts.total, 0, `Expected zero npm advisories, found ${counts.total}`);
+  console.log('complete-mobile-npm-audit: clear (0 advisories)');
 }
 
 async function main() {
   verifyInstalledVersion();
   verifyShellQuoteVersionAndCompatibility();
   await verifyIstanbulYamlCompatibility();
+  verifyXcodeUuidCompatibility();
   verifyNpmAuditResult();
 }
 

@@ -1,0 +1,9 @@
+appId: com.ruvnet.wifidensepose
+name: Zones screen renders the floor plan and occupancy summary
+---
+- launchApp:
+    clearState: true
+- tapOn: "Zones"
+- assertVisible: "Floor Plan.*Occupancy Heatmap"
+- assertVisible: "Occupancy:.*persons detected"
+- assertVisible: "Last update:.*"

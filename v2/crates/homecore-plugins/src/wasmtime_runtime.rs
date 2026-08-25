@@ -63,11 +63,7 @@ impl WasmtimeRuntime {
     ///
     /// Returns a [`WasmPlugin`] handle that owns the `Store` and the
     /// `Instance`. The handle can be used to call into the WASM module.
-    pub fn load_wasm(
-        &self,
-        wasm_bytes: &[u8],
-        hc: HomeCore,
-    ) -> Result<WasmPlugin, PluginError> {
+    pub fn load_wasm(&self, wasm_bytes: &[u8], hc: HomeCore) -> Result<WasmPlugin, PluginError> {
         let module = Module::new(&self.engine, wasm_bytes)
             .map_err(|e| PluginError::RuntimeError(format!("WASM compile: {e}")))?;
 
@@ -99,9 +95,7 @@ impl Default for WasmtimeRuntime {
 // ── Host import registration ───────────────────────────────────────────────
 
 /// Register the 4 host imports every HOMECORE plugin can call.
-fn register_host_imports(
-    linker: &mut Linker<PluginStoreData>,
-) -> Result<(), PluginError> {
+fn register_host_imports(linker: &mut Linker<PluginStoreData>) -> Result<(), PluginError> {
     register_hc_state_get(linker)?;
     register_hc_state_set(linker)?;
     register_hc_state_subscribe(linker)?;
@@ -115,9 +109,7 @@ fn register_host_imports(
 /// buffer at `[key_ptr, key_ptr+key_len)`. Writes the JSON-encoded state
 /// into `[out_ptr, out_ptr+out_cap)`. Returns the number of bytes written,
 /// or -1 if the entity is not found, or -2 if `out_cap` is too small.
-fn register_hc_state_get(
-    linker: &mut Linker<PluginStoreData>,
-) -> Result<(), PluginError> {
+fn register_hc_state_get(linker: &mut Linker<PluginStoreData>) -> Result<(), PluginError> {
     linker
         .func_wrap(
             "env",
@@ -184,9 +176,7 @@ fn register_hc_state_get(
 /// The new state string is at `[state_ptr,state_ptr+state_len)`.
 /// The attributes JSON is at `[attrs_ptr,attrs_ptr+attrs_len)`.
 /// Returns 0 on success, negative on error.
-fn register_hc_state_set(
-    linker: &mut Linker<PluginStoreData>,
-) -> Result<(), PluginError> {
+fn register_hc_state_set(linker: &mut Linker<PluginStoreData>) -> Result<(), PluginError> {
     linker
         .func_wrap(
             "env",
@@ -227,11 +217,12 @@ fn register_hc_state_set(
                 let attrs: serde_json::Value =
                     serde_json::from_str(&attrs_str).unwrap_or(serde_json::json!({}));
 
-                caller
-                    .data()
-                    .hc
-                    .states()
-                    .set(entity_id, new_state, attrs, homecore::Context::new());
+                caller.data().hc.states().set(
+                    entity_id,
+                    new_state,
+                    attrs,
+                    homecore::Context::new(),
+                );
                 0
             },
         )
@@ -243,9 +234,7 @@ fn register_hc_state_set(
 ///
 /// Records a subscription so the host will call `receive_event` on future
 /// state changes for this entity. Returns 0 on success, -1 on invalid entity.
-fn register_hc_state_subscribe(
-    linker: &mut Linker<PluginStoreData>,
-) -> Result<(), PluginError> {
+fn register_hc_state_subscribe(linker: &mut Linker<PluginStoreData>) -> Result<(), PluginError> {
     linker
         .func_wrap(
             "env",
@@ -275,9 +264,7 @@ fn register_hc_state_subscribe(
 /// `hc_log(level: i32, msg_ptr: i32, msg_len: i32) → ()`
 ///
 /// Structured log output from the plugin. `level`: 0=debug 1=info 2=warn 3=error.
-fn register_hc_log(
-    linker: &mut Linker<PluginStoreData>,
-) -> Result<(), PluginError> {
+fn register_hc_log(linker: &mut Linker<PluginStoreData>) -> Result<(), PluginError> {
     linker
         .func_wrap(
             "env",
@@ -331,10 +318,7 @@ impl WasmPlugin {
     }
 
     /// Call `plugin_handle_state_changed` with a [`StateChangedEventJson`].
-    pub fn call_state_changed(
-        &self,
-        event: &StateChangedEventJson,
-    ) -> Result<i32, PluginError> {
+    pub fn call_state_changed(&self, event: &StateChangedEventJson) -> Result<i32, PluginError> {
         let json = serde_json::to_string(event)
             .map_err(|e| PluginError::RuntimeError(format!("serialize event: {e}")))?;
         let mut guard = self

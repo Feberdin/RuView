@@ -74,7 +74,7 @@ thiserror = "1"
 # client (ADR-115 §10 references). `rustls` is preferred over openssl on
 # Windows to keep parity with the rest of the workspace (`ureq` above also
 # uses rustls).
-rumqttc   = { version = "0.24", default-features = false, features = ["use-rustls"], optional = true }
+rumqttc   = { version = "0.25.1", default-features = false, features = ["use-rustls"], optional = true }
 
 [features]
 default = []

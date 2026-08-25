@@ -18,6 +18,10 @@ services:
     image: ${RUVIEW_IMAGE:-ghcr.io/feberdin/ruview-unraid@sha256:4770fd5744f7e9cba4c10cd2b7b2643334262978f1addfb12732b5320a5ed6bc}
     pull_policy: always
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     # Why this exists: deploy_apply must distinguish "container process is up"
     # from "the Axum API is actually ready". The endpoint is intentionally
     # unauthenticated and reports readiness without returning sensing data.
@@ -41,9 +45,9 @@ services:
         max-size: "10m"
         max-file: "3"
     ports:
-      - "8300:3000"   # REST API and bundled UI
-      - "8301:3001"   # WebSocket
-      - "5005:5005/udp"   # ESP32 CSI UDP input
+      - "192.168.57.10:8300:3000"   # REST API and bundled UI
+      - "192.168.57.10:8301:3001"   # WebSocket
+      - "192.168.57.10:5005:5005/udp"   # ESP32 CSI UDP input
     environment:
       RUST_LOG: ${RUST_LOG:-info,sensing_server=debug}
       # Use esp32 by default on Unraid so hardware debugging keeps the UDP

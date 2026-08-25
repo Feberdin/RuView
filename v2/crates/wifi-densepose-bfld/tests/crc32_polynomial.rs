@@ -6,7 +6,7 @@
 //! disagree on the polynomial will treat every other's frame as corrupt.
 //!
 //! These tests use the standard "123456789" check string (CRC reference
-//! https://reveng.sourceforge.io/crc-catalogue/all.htm) plus a few targeted
+//! <https://reveng.sourceforge.io/crc-catalogue/all.htm>) plus a few targeted
 //! vectors. If a future PR swaps `CRC_32_ISO_HDLC` for `CRC_32_CKSUM` or
 //! similar, every test below fires.
 

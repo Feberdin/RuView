@@ -1,6 +1,6 @@
 //! Acceptance tests for `BfldPipelineHandle::spawn_with_oracle`. ADR-121 §2.6
 //! end-to-end: the operator-supplied Soul Signature oracle reaches the worker
-//! thread and downgrades Recalibrate-grade scores to PredictOnly.
+//! thread and downgrades Recalibrate-grade scores to `PredictOnly`.
 
 #![cfg(feature = "std")]
 
@@ -69,10 +69,10 @@ fn spawn_with_oracle_null_is_equivalent_to_spawn() {
 
     for i in 0..3 {
         handle_a
-            .send(input_at(i as f64 * 0.1, [0.2, 0.2, 0.2, 0.2]))
+            .send(input_at(f64::from(i) * 0.1, [0.2, 0.2, 0.2, 0.2]))
             .unwrap();
         handle_b
-            .send(input_at(i as f64 * 0.1, [0.2, 0.2, 0.2, 0.2]))
+            .send(input_at(f64::from(i) * 0.1, [0.2, 0.2, 0.2, 0.2]))
             .unwrap();
     }
     thread::sleep(Duration::from_millis(120));

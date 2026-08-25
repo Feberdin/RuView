@@ -9,7 +9,8 @@ from datetime import datetime
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError as JWTError
 
 from src.config.settings import get_settings
 

@@ -1,0 +1,9 @@
+appId: com.ruvnet.wifidensepose
+name: Vitals screen exposes measurements and confidence
+---
+- launchApp:
+    clearState: true
+- tapOn: "Vitals"
+- assertVisible: "RSSI HISTORY"
+- assertVisible: "Classification:.*"
+- assertVisible: "Confidence"

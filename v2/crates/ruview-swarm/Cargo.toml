@@ -14,7 +14,9 @@ default = []
 # ITAR/USML Category VIII(h)(12): swarming coordination features.
 # Must not be enabled in international distributions without export counsel review.
 itar-unrestricted = []
-mavlink = ["dep:mavlink"]
+# Compatibility marker for downstream feature sets. RuView's current MAVLink
+# signing/messages are implemented locally; no external parser is compiled.
+mavlink = []
 ros2-dds = []
 onnx = ["dep:ort"]
 simulation = []
@@ -37,9 +39,6 @@ toml = "0.8"
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"
-
-# MAVLink v2 (optional)
-mavlink = { version = "0.13", optional = true }
 
 # ONNX Runtime (optional — for MARL actor inference)
 ort = { version = "2.0.0-rc.11", optional = true }

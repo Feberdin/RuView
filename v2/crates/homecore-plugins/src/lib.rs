@@ -17,8 +17,8 @@
 //! ## What's NOT here yet (deferred)
 //!
 //! - `WasmtimeRuntime` (P2, `--features wasmtime`): Cranelift JIT sandbox on
-//!   Pi 5 / x86_64. The runtime-selection question (Wasmtime vs wasm3) is still
-//!   open (ADR-128 §8) and will be resolved in Q2 before P2 begins.
+//!   Pi 5 / x86_64. The unimplemented wasm3 alternative was removed because
+//!   the dependency has no maintained security release.
 //! - Host ABI wiring: `hc_state_get`, `hc_state_set`, `hc_event_fire`, etc.
 //!   (P2 — requires ADR-127 state machine API freeze first).
 //! - Config entry lifecycle + hot-load (P3).
@@ -30,7 +30,6 @@
 //! | Feature | Default | Description |
 //! |---------|---------|-------------|
 //! | `wasmtime` | off | Wasmtime Cranelift JIT runtime (P2) |
-//! | `wasm3` | off | wasm3 interpreter runtime for constrained hardware (P3) |
 
 pub mod error;
 pub mod host_abi;
@@ -44,7 +43,7 @@ pub mod wasmtime_runtime;
 
 pub use error::PluginError;
 pub use host_abi::{ConfigEntryJson, StateChangedEventJson};
-pub use manifest::{IotClass, IntegrationType, PluginManifest};
+pub use manifest::{IntegrationType, IotClass, PluginManifest};
 pub use plugin::{HomeCorePlugin, PluginId};
 pub use registry::PluginRegistry;
 pub use runtime::{InProcessRuntime, LoadedPlugin, PluginRuntime};

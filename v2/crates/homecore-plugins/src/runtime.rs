@@ -1,8 +1,8 @@
 //! `PluginRuntime` trait + `InProcessRuntime` (P1).
 //!
 //! Abstracts over Wasmtime (P2, `--features wasmtime`) and native in-process
-//! Rust plugins (P1, always-on). A third backend, wasm3 (P3), will provide
-//! interpretation mode for constrained hardware.
+//! Rust plugins (P1, always-on). The former wasm3 placeholder was removed
+//! because it never had an implementation and has no maintained safe release.
 //!
 //! # Architecture
 //!
@@ -12,7 +12,6 @@
 //!       ▼
 //! PluginRuntime  ◄─── InProcessRuntime  (P1, native Rust, <1 µs call)
 //!                ◄─── WasmtimeRuntime   (P2, Cranelift JIT, ~5 ms cold start)
-//!                ◄─── Wasm3Runtime      (P3, interpreter, ~50 kB, Pi Zero)
 //! ```
 
 use std::sync::Arc;
@@ -46,9 +45,9 @@ impl LoadedPlugin {
 
 /// Abstraction over the WASM (and native) plugin execution environment.
 ///
-/// P2 will supply a `WasmtimeRuntime` that compiles `.wasm` bytes with
-/// Cranelift; P3 adds a `Wasm3Runtime` for constrained targets. Both will
-/// implement this trait so the registry is runtime-agnostic.
+/// P2 supplies a `WasmtimeRuntime` that compiles `.wasm` bytes with
+/// Cranelift. Runtime implementations use this trait so the registry remains
+/// independent from the selected, maintained engine.
 #[async_trait]
 pub trait PluginRuntime: Send + Sync + 'static {
     /// Load a plugin from a boxed [`HomeCorePlugin`] implementation and a

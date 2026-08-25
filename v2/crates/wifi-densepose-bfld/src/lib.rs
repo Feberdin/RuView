@@ -1,6 +1,6 @@
 //! # BFLD — Beamforming Feedback Layer for Detection
 //!
-//! Privacy-gated WiFi sensing primitives derived from 802.11ac/ax Beamforming
+//! Privacy-gated `WiFi` sensing primitives derived from 802.11ac/ax Beamforming
 //! Feedback Information (BFI). See [`docs/adr/ADR-118-bfld-beamforming-feedback-layer-for-detection.md`](../../../docs/adr/ADR-118-bfld-beamforming-feedback-layer-for-detection.md).
 //!
 //! ## Three structural invariants
@@ -13,23 +13,23 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "std")]
+pub mod availability;
 pub mod coherence_gate;
 pub mod embedding;
 pub mod embedding_ring;
 #[cfg(feature = "std")]
 pub mod emitter;
 #[cfg(feature = "std")]
-pub mod availability;
-#[cfg(feature = "std")]
 pub mod event;
 pub mod frame;
 #[cfg(feature = "std")]
 pub mod ha_discovery;
 #[cfg(feature = "std")]
-pub mod mqtt_topics;
-#[cfg(feature = "std")]
 pub mod identity_features;
 pub mod identity_risk;
+#[cfg(feature = "std")]
+pub mod mqtt_topics;
 #[cfg(feature = "std")]
 pub mod payload;
 #[cfg(feature = "std")]
@@ -44,30 +44,28 @@ pub mod rumqttc_publisher;
 pub mod signature_hasher;
 pub mod sink;
 
-pub use coherence_gate::{CoherenceGate, MatchOutcome, NullOracle, SoulMatchOracle};
-#[cfg(feature = "std")]
-pub use emitter::{BfldEmitter, SensingInputs};
-#[cfg(feature = "std")]
-pub use event::BfldEvent;
 #[cfg(feature = "std")]
 pub use availability::{
     availability_topic, offline_message, online_message, publish_availability_offline,
     publish_availability_online, PAYLOAD_AVAILABLE, PAYLOAD_NOT_AVAILABLE,
 };
-#[cfg(feature = "std")]
-pub use ha_discovery::{publish_discovery, render_discovery_payloads};
-#[cfg(feature = "std")]
-pub use mqtt_topics::{publish_event, render_events, CapturePublisher, Publish, TopicMessage};
-#[cfg(feature = "mqtt")]
-pub use rumqttc_publisher::{with_lwt, RumqttPublisher};
+pub use coherence_gate::{CoherenceGate, MatchOutcome, NullOracle, SoulMatchOracle};
 pub use embedding::{IdentityEmbedding, EMBEDDING_DIM};
 pub use embedding_ring::{EmbeddingRing, RING_CAPACITY};
 #[cfg(feature = "std")]
-pub use identity_features::{IdentityFeatures, RISK_FACTOR_BYTES};
-pub use identity_risk::{score as identity_risk_score, GateAction};
-pub use frame::{BfldFrameHeader, BFLD_MAGIC, BFLD_VERSION, BFLD_HEADER_SIZE};
+pub use emitter::{BfldEmitter, SensingInputs};
+#[cfg(feature = "std")]
+pub use event::BfldEvent;
 #[cfg(feature = "std")]
 pub use frame::BfldFrame;
+pub use frame::{BfldFrameHeader, BFLD_HEADER_SIZE, BFLD_MAGIC, BFLD_VERSION};
+#[cfg(feature = "std")]
+pub use ha_discovery::{publish_discovery, render_discovery_payloads};
+#[cfg(feature = "std")]
+pub use identity_features::{IdentityFeatures, RISK_FACTOR_BYTES};
+pub use identity_risk::{score as identity_risk_score, GateAction};
+#[cfg(feature = "std")]
+pub use mqtt_topics::{publish_event, render_events, CapturePublisher, Publish, TopicMessage};
 #[cfg(feature = "std")]
 pub use payload::BfldPayload;
 #[cfg(feature = "std")]
@@ -76,9 +74,11 @@ pub use pipeline::{BfldConfig, BfldPipeline};
 pub use pipeline_handle::{BfldPipelineHandle, PipelineInput};
 #[cfg(feature = "std")]
 pub use privacy_gate::PrivacyGate;
-pub use privacy_mode::{PrivacyAction, PrivacyAttestationProof, PrivacyMode};
 #[cfg(feature = "std")]
 pub use privacy_mode::PrivacyModeRegistry;
+pub use privacy_mode::{PrivacyAction, PrivacyAttestationProof, PrivacyMode};
+#[cfg(feature = "mqtt")]
+pub use rumqttc_publisher::{with_lwt, RumqttPublisher};
 pub use signature_hasher::{SignatureHasher, RF_SIGNATURE_LEN, SITE_SALT_LEN};
 pub use sink::{check_class, LocalSink, MatterSink, NetworkSink, Sink};
 
@@ -89,7 +89,7 @@ pub enum PrivacyClass {
     /// Local-only research data including raw BFI matrix. Never networked.
     Raw = 0,
     /// Operator-acknowledged research mode over LAN. Downsampled angles +
-    /// identity_embedding + identity_risk_score available. Required for
+    /// `identity_embedding` + `identity_risk_score` available. Required for
     /// Soul Signature deployments (ADR-120 §2.7).
     Derived = 1,
     /// Production default: aggregate sensing only, no identity-derived fields.

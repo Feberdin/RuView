@@ -50,6 +50,11 @@ client = [
 ]
 # Developer dependencies for running the test suite + lint.
 dev = [
+    # The BFLD tests construct real ndarray inputs for the PyO3 bridge.
+    # NumPy 2.3+ requires Python 3.11 and its stubs use Python 3.12 syntax.
+    # Keep the development matrix compatible with this package's abi3-py310
+    # support contract; runtime users do not depend on NumPy through this extra.
+    "numpy>=2.0,<2.3",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.7",

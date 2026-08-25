@@ -133,7 +133,7 @@ pub enum MatchOutcome {
 pub trait SoulMatchOracle {
     /// Return the current match outcome. May be called once per evaluation
     /// when the gate is about to fire `Recalibrate`; implementations should
-    /// be cheap (the iter-10 budget is < 1 ms via RaBitQ; see ADR-121 §2.7).
+    /// be cheap (the iter-10 budget is < 1 ms via `RaBitQ`; see ADR-121 §2.7).
     fn matches_enrolled(&self) -> MatchOutcome;
 }
 

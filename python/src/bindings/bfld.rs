@@ -22,8 +22,8 @@
 //!
 //! Tomorrow (post-v2.0): `wifi-densepose-bfld` does steps 1+2 for you.
 
+use numpy::{Complex64, PyArray3, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::prelude::*;
-use numpy::{Complex64, PyArray3, PyUntypedArrayMethods, PyReadonlyArray3};
 
 // ─── BfldKind ────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ use numpy::{Complex64, PyArray3, PyUntypedArrayMethods, PyReadonlyArray3};
 /// from wifi_densepose import BfldKind
 /// BfldKind.CompressedHE80   # 802.11ax 80 MHz compressed BFR
 /// ```
-#[pyclass(eq, eq_int, hash, frozen, name = "BfldKind")]
+#[pyclass(from_py_object, eq, eq_int, hash, frozen, name = "BfldKind")]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PyBfldKind {
     CompressedHE20 = 0,
@@ -162,11 +162,7 @@ impl PyBfldFrame {
         }
         // Copy into row-major Vec. This is the safe path; PyArray3 is
         // also row-major by default.
-        let matrix: Vec<Complex64> = feedback_matrix
-            .as_array()
-            .iter()
-            .copied()
-            .collect();
+        let matrix: Vec<Complex64> = feedback_matrix.as_array().iter().copied().collect();
         Ok(Self {
             timestamp_ms,
             sounding_index,
@@ -180,25 +176,39 @@ impl PyBfldFrame {
     }
 
     #[getter]
-    fn timestamp_ms(&self) -> i64 { self.timestamp_ms }
+    fn timestamp_ms(&self) -> i64 {
+        self.timestamp_ms
+    }
 
     #[getter]
-    fn sounding_index(&self) -> u32 { self.sounding_index }
+    fn sounding_index(&self) -> u32 {
+        self.sounding_index
+    }
 
     #[getter]
-    fn sta_mac(&self) -> &str { &self.sta_mac }
+    fn sta_mac(&self) -> &str {
+        &self.sta_mac
+    }
 
     #[getter]
-    fn kind(&self) -> PyBfldKind { self.kind }
+    fn kind(&self) -> PyBfldKind {
+        self.kind
+    }
 
     #[getter]
-    fn n_rows(&self) -> usize { self.n_rows }
+    fn n_rows(&self) -> usize {
+        self.n_rows
+    }
 
     #[getter]
-    fn n_cols(&self) -> usize { self.n_cols }
+    fn n_cols(&self) -> usize {
+        self.n_cols
+    }
 
     #[getter]
-    fn n_subcarriers(&self) -> usize { self.n_subcarriers }
+    fn n_subcarriers(&self) -> usize {
+        self.n_subcarriers
+    }
 
     /// Mean amplitude across the entire matrix (sanity-check metric;
     /// production-grade sensing pipelines look at per-subcarrier or
@@ -216,18 +226,20 @@ impl PyBfldFrame {
     /// shape `[n_rows, n_cols, n_subcarriers]`. Allocates a fresh
     /// Python-owned array; the BfldFrame keeps its own copy.
     fn feedback_matrix<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray3<Complex64>> {
-        PyArray3::from_vec3_bound(
-            py,
-            &self.reshape_to_vec3(),
-        )
-        .expect("Vec dimensions match the matrix shape — invariant of from_compressed_feedback")
+        PyArray3::from_vec3(py, &self.reshape_to_vec3())
+            .expect("Vec dimensions match the matrix shape — invariant of from_compressed_feedback")
     }
 
     fn __repr__(&self) -> String {
         format!(
             "BfldFrame(kind={:?}, nr={}, nc={}, nsc={}, sta={}, idx={}, mean_amp={:.4})",
-            self.kind, self.n_rows, self.n_cols, self.n_subcarriers,
-            self.sta_mac, self.sounding_index, self.mean_amplitude(),
+            self.kind,
+            self.n_rows,
+            self.n_cols,
+            self.n_subcarriers,
+            self.sta_mac,
+            self.sounding_index,
+            self.mean_amplitude(),
         )
     }
 }
@@ -289,23 +301,39 @@ impl PyBfldReport {
             self.kind = Some(frame.kind);
         }
         self.frames.push(frame.sounding_index);
-        self.timestamp_first = Some(self.timestamp_first.unwrap_or(frame.timestamp_ms).min(frame.timestamp_ms));
-        self.timestamp_last = Some(self.timestamp_last.unwrap_or(frame.timestamp_ms).max(frame.timestamp_ms));
+        self.timestamp_first = Some(
+            self.timestamp_first
+                .unwrap_or(frame.timestamp_ms)
+                .min(frame.timestamp_ms),
+        );
+        self.timestamp_last = Some(
+            self.timestamp_last
+                .unwrap_or(frame.timestamp_ms)
+                .max(frame.timestamp_ms),
+        );
         self.mean_amplitudes.push(frame.mean_amplitude());
         Ok(())
     }
 
     #[getter]
-    fn n_frames(&self) -> usize { self.frames.len() }
+    fn n_frames(&self) -> usize {
+        self.frames.len()
+    }
 
     #[getter]
-    fn timestamp_first(&self) -> Option<i64> { self.timestamp_first }
+    fn timestamp_first(&self) -> Option<i64> {
+        self.timestamp_first
+    }
 
     #[getter]
-    fn timestamp_last(&self) -> Option<i64> { self.timestamp_last }
+    fn timestamp_last(&self) -> Option<i64> {
+        self.timestamp_last
+    }
 
     #[getter]
-    fn kind(&self) -> Option<PyBfldKind> { self.kind }
+    fn kind(&self) -> Option<PyBfldKind> {
+        self.kind
+    }
 
     /// Mean of the per-frame mean amplitudes — coarse sanity metric
     /// for "the scan captured a stable signal over the window".
@@ -314,13 +342,14 @@ impl PyBfldReport {
         if self.mean_amplitudes.is_empty() {
             return 0.0;
         }
-        let mean = self.mean_amplitudes.iter().sum::<f64>()
-            / self.mean_amplitudes.len() as f64;
+        let mean = self.mean_amplitudes.iter().sum::<f64>() / self.mean_amplitudes.len() as f64;
         if mean == 0.0 {
             return 0.0;
         }
         // Inverse coefficient of variation, clamped to [0, 1].
-        let var = self.mean_amplitudes.iter()
+        let var = self
+            .mean_amplitudes
+            .iter()
             .map(|m| (m - mean).powi(2))
             .sum::<f64>()
             / self.mean_amplitudes.len() as f64;
@@ -331,7 +360,9 @@ impl PyBfldReport {
     fn __repr__(&self) -> String {
         format!(
             "BfldReport(n_frames={}, kind={:?}, coherence={:.3})",
-            self.frames.len(), self.kind, self.coherence_score(),
+            self.frames.len(),
+            self.kind,
+            self.coherence_score(),
         )
     }
 }

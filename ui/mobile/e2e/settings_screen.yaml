@@ -1,0 +1,11 @@
+appId: com.ruvnet.wifidensepose
+name: Settings screen exposes safe connection and appearance controls
+---
+- launchApp:
+    clearState: true
+- tapOn: "Settings"
+- assertVisible: "SERVER"
+- assertVisible: "Server URL"
+- assertVisible: "Test Connection"
+- assertVisible: "APPEARANCE"
+- assertVisible: "WiFi-DensePose Mobile v1.0.0"

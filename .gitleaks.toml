@@ -1,0 +1,18 @@
+# Purpose: Extend Gitleaks' maintained default rules with narrow exclusions for
+# generated dependency/build output that is already forbidden from Git.
+# Input/output: Gitleaks scans source and history; findings remain redacted.
+# Invariant/debugging: source documentation and tests are never allowlisted.
+
+title = "RuView secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated dependencies and build output are not source artifacts"
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)target/''',
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+]

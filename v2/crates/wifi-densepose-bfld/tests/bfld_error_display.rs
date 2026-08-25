@@ -50,7 +50,7 @@ fn invalid_privacy_class_displays_the_offending_byte() {
     let err = BfldError::InvalidPrivacyClass(7);
     let s = err.to_string();
     assert!(s.contains("invalid PrivacyClass byte"), "got: {s}");
-    assert!(s.contains("7"), "byte value missing: {s}");
+    assert!(s.contains('7'), "byte value missing: {s}");
 }
 
 #[test]
@@ -98,7 +98,10 @@ fn bfld_error_is_debug_so_panic_unwrap_messages_carry_diagnostics() {
         actual: 0xBB,
     };
     let debug = format!("{err:?}");
-    assert!(debug.contains("Crc"), "Debug must show variant name: {debug}");
+    assert!(
+        debug.contains("Crc"),
+        "Debug must show variant name: {debug}"
+    );
 }
 
 // --- catch-all: every variant has a non-empty Display -----------------

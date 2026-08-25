@@ -12,6 +12,7 @@ use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand, ValueEnum};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::path::PathBuf;
 use tabled::{settings::Style, Table, Tabled};
 
@@ -367,58 +368,124 @@ pub enum ExportFormat {
 // ============================================================================
 
 /// Survivor display row for tables
-#[derive(Tabled, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct SurvivorRow {
-    #[tabled(rename = "ID")]
     id: String,
-    #[tabled(rename = "Zone")]
     zone: String,
-    #[tabled(rename = "Triage")]
     triage: String,
-    #[tabled(rename = "Status")]
     status: String,
-    #[tabled(rename = "Confidence")]
     confidence: String,
-    #[tabled(rename = "Location")]
     location: String,
-    #[tabled(rename = "Last Update")]
     last_update: String,
 }
 
 /// Zone display row for tables
-#[derive(Tabled, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct ZoneRow {
-    #[tabled(rename = "ID")]
     id: String,
-    #[tabled(rename = "Name")]
     name: String,
-    #[tabled(rename = "Status")]
     status: String,
-    #[tabled(rename = "Area (m2)")]
     area: String,
-    #[tabled(rename = "Scans")]
     scan_count: u32,
-    #[tabled(rename = "Detections")]
     detections: u32,
-    #[tabled(rename = "Last Scan")]
     last_scan: String,
 }
 
 /// Alert display row for tables
-#[derive(Tabled, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct AlertRow {
-    #[tabled(rename = "ID")]
     id: String,
-    #[tabled(rename = "Priority")]
     priority: String,
-    #[tabled(rename = "Status")]
     status: String,
-    #[tabled(rename = "Survivor")]
     survivor_id: String,
-    #[tabled(rename = "Title")]
     title: String,
-    #[tabled(rename = "Age")]
     age: String,
+}
+
+// Why this exists: hand-written table schemas avoid the unmaintained derive
+// macro dependency while preserving the exact headers and field order users see.
+impl Tabled for SurvivorRow {
+    const LENGTH: usize = 7;
+
+    fn fields(&self) -> Vec<Cow<'_, str>> {
+        vec![
+            Cow::Borrowed(&self.id),
+            Cow::Borrowed(&self.zone),
+            Cow::Borrowed(&self.triage),
+            Cow::Borrowed(&self.status),
+            Cow::Borrowed(&self.confidence),
+            Cow::Borrowed(&self.location),
+            Cow::Borrowed(&self.last_update),
+        ]
+    }
+
+    fn headers() -> Vec<Cow<'static, str>> {
+        [
+            "ID",
+            "Zone",
+            "Triage",
+            "Status",
+            "Confidence",
+            "Location",
+            "Last Update",
+        ]
+        .into_iter()
+        .map(Cow::Borrowed)
+        .collect()
+    }
+}
+
+impl Tabled for ZoneRow {
+    const LENGTH: usize = 7;
+
+    fn fields(&self) -> Vec<Cow<'_, str>> {
+        vec![
+            Cow::Borrowed(&self.id),
+            Cow::Borrowed(&self.name),
+            Cow::Borrowed(&self.status),
+            Cow::Borrowed(&self.area),
+            Cow::Owned(self.scan_count.to_string()),
+            Cow::Owned(self.detections.to_string()),
+            Cow::Borrowed(&self.last_scan),
+        ]
+    }
+
+    fn headers() -> Vec<Cow<'static, str>> {
+        [
+            "ID",
+            "Name",
+            "Status",
+            "Area (m2)",
+            "Scans",
+            "Detections",
+            "Last Scan",
+        ]
+        .into_iter()
+        .map(Cow::Borrowed)
+        .collect()
+    }
+}
+
+impl Tabled for AlertRow {
+    const LENGTH: usize = 6;
+
+    fn fields(&self) -> Vec<Cow<'_, str>> {
+        vec![
+            Cow::Borrowed(&self.id),
+            Cow::Borrowed(&self.priority),
+            Cow::Borrowed(&self.status),
+            Cow::Borrowed(&self.survivor_id),
+            Cow::Borrowed(&self.title),
+            Cow::Borrowed(&self.age),
+        ]
+    }
+
+    fn headers() -> Vec<Cow<'static, str>> {
+        ["ID", "Priority", "Status", "Survivor", "Title", "Age"]
+            .into_iter()
+            .map(Cow::Borrowed)
+            .collect()
+    }
 }
 
 /// Status display for system overview
@@ -1199,5 +1266,31 @@ mod tests {
     fn test_triage_filter_conversion() {
         let ts: TriageStatus = TriageFilter::Immediate.into();
         assert!(matches!(ts, TriageStatus::Immediate));
+    }
+
+    #[test]
+    fn table_rows_preserve_user_facing_headers_without_derive_macros() {
+        assert_eq!(
+            SurvivorRow::headers(),
+            [
+                "ID",
+                "Zone",
+                "Triage",
+                "Status",
+                "Confidence",
+                "Location",
+                "Last Update"
+            ]
+            .into_iter()
+            .map(Cow::Borrowed)
+            .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            AlertRow::headers(),
+            ["ID", "Priority", "Status", "Survivor", "Title", "Age"]
+                .into_iter()
+                .map(Cow::Borrowed)
+                .collect::<Vec<_>>()
+        );
     }
 }

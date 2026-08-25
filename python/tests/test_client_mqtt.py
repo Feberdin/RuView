@@ -24,7 +24,6 @@ import pytest
 from wifi_densepose.client import RuViewMqttClient
 from wifi_densepose.client.mqtt import _topic_matches
 
-
 # ─── Topic wildcard matcher ──────────────────────────────────────────
 
 

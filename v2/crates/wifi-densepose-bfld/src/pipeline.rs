@@ -9,7 +9,7 @@
 //! - A single named consumer call ([`Self::process`]) so callers don't have
 //!   to navigate the lower-level emitter API.
 //!
-//! Future iters add `process_to_frame()` (BfldFrame production) and a `tokio`
+//! Future iters add `process_to_frame()` (`BfldFrame` production) and a `tokio`
 //! MQTT loop wrapper on top of this same facade.
 
 #![cfg(feature = "std")]
@@ -36,7 +36,7 @@ pub struct BfldConfig {
 }
 
 impl BfldConfig {
-    /// Build a minimal config: node_id only, class defaulted to Anonymous.
+    /// Build a minimal config: `node_id` only, class defaulted to Anonymous.
     #[must_use]
     pub fn new(node_id: impl Into<String>) -> Self {
         Self {
@@ -117,7 +117,7 @@ impl BfldPipeline {
 
     /// Variant of [`Self::process`] that consults a [`SoulMatchOracle`] before
     /// the coherence gate fires `Recalibrate`. See ADR-121 §2.6 and ADR-118
-    /// §1.4. The privacy_mode post-processing still applies; the oracle only
+    /// §1.4. The `privacy_mode` post-processing still applies; the oracle only
     /// affects whether the gate transitions to Recalibrate at all.
     pub fn process_with_oracle<O: SoulMatchOracle>(
         &mut self,
@@ -183,7 +183,7 @@ impl BfldPipeline {
     }
 
     /// Engage privacy mode: future `process()` calls return events demoted
-    /// to Restricted (identity_risk_score + rf_signature_hash stripped)
+    /// to Restricted (`identity_risk_score` + `rf_signature_hash` stripped)
     /// regardless of the configured baseline.
     ///
     /// The override is applied post-emission so the underlying gate / ring /

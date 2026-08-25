@@ -1,6 +1,6 @@
 //! Validate the BFLD section in `docs/user-guide.md` per the project's
 //! pre-merge checklist item #6 ("Update if new data sources, CLI flags, or
-//! setup steps were added"). Test embeds the user-guide via include_str
+//! setup steps were added"). Test embeds the user-guide via `include_str`
 //! and asserts the operator-facing surface is documented.
 
 #![cfg(feature = "std")]
@@ -70,7 +70,10 @@ fn user_guide_bfld_section_documents_mqtt_topic_tree() {
         "ruview/<node_id>/bfld/presence/state",
         "ruview/<node_id>/bfld/identity_risk/state",
     ] {
-        assert!(USER_GUIDE.contains(topic), "user-guide missing topic {topic}");
+        assert!(
+            USER_GUIDE.contains(topic),
+            "user-guide missing topic {topic}"
+        );
     }
 }
 

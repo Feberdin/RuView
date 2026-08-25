@@ -24,7 +24,7 @@ use crate::identity_risk::{score, GateAction};
 use crate::signature_hasher::SignatureHasher;
 use crate::{BfldEvent, IdentityEmbedding, PrivacyClass};
 
-/// Nanoseconds-per-second conversion factor for deriving unix_secs from
+/// Nanoseconds-per-second conversion factor for deriving `unix_secs` from
 /// `timestamp_ns`. The caller is responsible for using unix-epoch nanoseconds
 /// if it wants stable daily rotation; monotonic-only clocks won't anchor to
 /// UTC midnight.

@@ -8,7 +8,7 @@
  * Returns: EdgeVitalsMessage | {ok:false, warn:true, error, hint}
  */
 
-import type { RuviewConfig, EdgeVitalsMessage } from "../types.js";
+import type { EdgeVitalsMessage } from "../types.js";
 import { sensingGet } from "../http.js";
 
 export type VitalsFetchOk = { ok: true; data: EdgeVitalsMessage };

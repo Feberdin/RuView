@@ -30,7 +30,6 @@ from wifi_densepose import (
     VitalStatus,
 )
 
-
 # ─── VitalStatus enum ────────────────────────────────────────────────
 
 
@@ -69,7 +68,7 @@ def test_vital_estimate_construction_and_getters() -> None:
 def test_vital_estimate_is_frozen() -> None:
     est = VitalEstimate(value_bpm=72.0, confidence=0.9, status=VitalStatus.Valid)
     with pytest.raises(AttributeError):
-        est.value_bpm = 100.0  # type: ignore[misc]
+        est.value_bpm = 100.0
 
 
 def test_vital_estimate_repr_is_readable() -> None:
@@ -166,7 +165,9 @@ def test_breathing_extract_with_synthetic_signal() -> None:
             )
             break
 
-    assert produced_estimate, "BreathingExtractor never produced an estimate after 40s of synthetic data"
+    assert produced_estimate, (
+        "BreathingExtractor never produced an estimate after 40s of synthetic data"
+    )
 
 
 # ─── HeartRateExtractor ──────────────────────────────────────────────

@@ -13,7 +13,7 @@
 //!
 //! `wifi-densepose-vitals` has zero tokio deps and the extract loops
 //! are pure-sync DSP. Wrap the `.extract(...)` calls in
-//! `py.allow_threads(|| ...)` so Python users can run inference in a
+//! `py.detach(|| ...)` so Python users can run inference in a
 //! tokio-backed web server without GIL contention starving the
 //! event loop.
 
@@ -35,7 +35,7 @@ use wifi_densepose_vitals::{
 /// VitalStatus.Unreliable  # single RSSI source / low quality
 /// VitalStatus.Unavailable # no measurement possible
 /// ```
-#[pyclass(eq, eq_int, hash, frozen, name = "VitalStatus")]
+#[pyclass(from_py_object, eq, eq_int, hash, frozen, name = "VitalStatus")]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PyVitalStatus {
     Valid = 0,
@@ -81,7 +81,7 @@ impl PyVitalStatus {
 /// est = VitalEstimate(72.4, confidence=0.9, status=VitalStatus.Valid)
 /// print(est.value_bpm, est.confidence, est.status)
 /// ```
-#[pyclass(frozen, name = "VitalEstimate")]
+#[pyclass(from_py_object, frozen, name = "VitalEstimate")]
 #[derive(Clone)]
 pub struct PyVitalEstimate {
     inner: VitalEstimate,
@@ -101,13 +101,19 @@ impl PyVitalEstimate {
     }
 
     #[getter]
-    fn value_bpm(&self) -> f64 { self.inner.value_bpm }
+    fn value_bpm(&self) -> f64 {
+        self.inner.value_bpm
+    }
 
     #[getter]
-    fn confidence(&self) -> f64 { self.inner.confidence }
+    fn confidence(&self) -> f64 {
+        self.inner.confidence
+    }
 
     #[getter]
-    fn status(&self) -> PyVitalStatus { PyVitalStatus::from_rust(self.inner.status) }
+    fn status(&self) -> PyVitalStatus {
+        PyVitalStatus::from_rust(self.inner.status)
+    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -163,13 +169,19 @@ impl PyVitalReading {
     }
 
     #[getter]
-    fn subcarrier_count(&self) -> usize { self.inner.subcarrier_count }
+    fn subcarrier_count(&self) -> usize {
+        self.inner.subcarrier_count
+    }
 
     #[getter]
-    fn signal_quality(&self) -> f64 { self.inner.signal_quality }
+    fn signal_quality(&self) -> f64 {
+        self.inner.signal_quality
+    }
 
     #[getter]
-    fn timestamp_secs(&self) -> f64 { self.inner.timestamp_secs }
+    fn timestamp_secs(&self) -> f64 {
+        self.inner.timestamp_secs
+    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -218,7 +230,9 @@ impl PyBreathingExtractor {
     /// ESP32 defaults: 56 subcarriers, 100 Hz, 30-second window.
     #[staticmethod]
     fn esp32_default() -> Self {
-        Self { inner: BreathingExtractor::esp32_default() }
+        Self {
+            inner: BreathingExtractor::esp32_default(),
+        }
     }
 
     /// Extract respiratory rate from a vector of per-subcarrier
@@ -226,11 +240,16 @@ impl PyBreathingExtractor {
     /// DSP loop so Python threads can do other work concurrently.
     ///
     /// Returns `None` if insufficient history has been accumulated.
-    fn extract(&mut self, py: Python<'_>, residuals: Vec<f64>, weights: Vec<f64>) -> Option<PyVitalEstimate> {
+    fn extract(
+        &mut self,
+        py: Python<'_>,
+        residuals: Vec<f64>,
+        weights: Vec<f64>,
+    ) -> Option<PyVitalEstimate> {
         // GIL release: see ADR-117 §7 and the Q5 tokio audit. The DSP
         // loop is pure sync, no Python objects touched, safe to run
         // without the GIL.
-        let est = py.allow_threads(|| self.inner.extract(&residuals, &weights));
+        let est = py.detach(|| self.inner.extract(&residuals, &weights));
         est.map(PyVitalEstimate::from_rust)
     }
 
@@ -262,13 +281,20 @@ impl PyHeartRateExtractor {
     /// ESP32 defaults: 56 subcarriers, 100 Hz, 15-second window.
     #[staticmethod]
     fn esp32_default() -> Self {
-        Self { inner: HeartRateExtractor::esp32_default() }
+        Self {
+            inner: HeartRateExtractor::esp32_default(),
+        }
     }
 
     /// Extract heart rate from per-subcarrier residuals. GIL released
     /// during DSP.
-    fn extract(&mut self, py: Python<'_>, residuals: Vec<f64>, weights: Vec<f64>) -> Option<PyVitalEstimate> {
-        let est = py.allow_threads(|| self.inner.extract(&residuals, &weights));
+    fn extract(
+        &mut self,
+        py: Python<'_>,
+        residuals: Vec<f64>,
+        weights: Vec<f64>,
+    ) -> Option<PyVitalEstimate> {
+        let est = py.detach(|| self.inner.extract(&residuals, &weights));
         est.map(PyVitalEstimate::from_rust)
     }
 

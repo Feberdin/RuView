@@ -5,7 +5,7 @@
 WiFi-DensePose Mobile is a React Native / Expo companion app for the [WiFi-DensePose](../../README.md) sensing platform. It connects to a WiFi sensing server over WebSocket, renders live 3D Gaussian splat visualizations of detected humans, displays breathing and heart rate in real time, and provides a full WiFi-MAT disaster triage dashboard — all from a single codebase that runs on iOS, Android, and Web.
 
 > | Screen | What It Shows |
-> |--------|---------------|
+> | -------- | --------------- |
 > | **Live** | 3D Gaussian splat body rendering with FPS counter, signal strength, confidence HUD |
 > | **Vitals** | Breathing rate (6-30 BPM) and heart rate (40-120 BPM) arc gauges with sparkline history |
 > | **Zones** | SVG floor plan with occupancy grid, zone legend, presence heatmap |
@@ -27,7 +27,7 @@ npx expo start --web
 ## Features
 
 | | Feature | Details |
-|---|---------|---------|
+| --- | --------- | --------- |
 | **3D Live View** | Gaussian splat rendering | Three.js via WebView (native) or iframe (web), real-time pose overlay |
 | **Vital Signs** | Breathing + heart rate | Arc gauge components with sparkline 60-sample history, confidence indicators |
 | **Disaster Response** | WiFi-MAT dashboard | Survivor detection, START triage classification, priority alerts, zone scan tracking |
@@ -44,7 +44,7 @@ npx expo start --web
 ## Prerequisites
 
 | Requirement | Version | Notes |
-|-------------|---------|-------|
+| ------------- | --------- | ------- |
 | Node.js | 18+ | LTS recommended |
 | npm | 9+ | Ships with Node.js 18+ |
 | Expo CLI | Latest | Installed automatically via `npx` |
@@ -93,7 +93,7 @@ Requires Xcode with a simulator, or a physical device with Expo Go. RSSI scannin
 The app connects to the WiFi-DensePose sensing server over WebSocket for live data. Configure the server URL in the **Settings** tab.
 
 | Server Location | URL | Notes |
-|----------------|-----|-------|
+| ---------------- | ----- | ------- |
 | Local dev server | `http://localhost:3000` | Default; sensing WS auto-connects on port 3001 |
 | Docker container | `http://host.docker.internal:3000` | From emulator connecting to host Docker |
 | ESP32 mesh | `http://<esp32-ip>:3000` | Direct connection to ESP32 aggregator |
@@ -108,7 +108,7 @@ When the server is unreachable, the app automatically falls back to **simulation
 
 ### Directory Structure
 
-```
+```text
 ui/mobile/
   App.tsx                          Root component (providers, navigation, services)
   app.config.ts                    Expo configuration
@@ -118,7 +118,6 @@ ui/mobile/
       ConnectionBanner.tsx         Server status banner (connected/simulated/disconnected)
       ErrorBoundary.tsx            Crash boundary with fallback UI
       GaugeArc.tsx                 SVG arc gauge for vital sign display
-      HudOverlay.tsx               Heads-up display overlay
       LoadingSpinner.tsx           Themed loading indicator
       ModeBadge.tsx                LIVE / SIM / RSSI mode indicator
       OccupancyGrid.tsx            Grid-based occupancy visualization
@@ -136,7 +135,6 @@ ui/mobile/
       useRssiScanner.ts            Platform RSSI scanning hook
       useServerReachability.ts     HTTP health check polling
       useTheme.ts                  Dark/light/system theme resolution
-      useWebViewBridge.ts          WebView message bridge for Gaussian viewer
     navigation/
       MainTabs.tsx                 Bottom tab navigator (5 tabs with lazy loading)
       RootNavigator.tsx            Root stack navigator
@@ -204,7 +202,7 @@ ui/mobile/
 
 ### Data Flow
 
-```
+```text
 WiFi Sensing Server (Rust/Axum)
        |
        | WebSocket (ws://host:3001/ws/sensing)
@@ -260,6 +258,7 @@ Mass Casualty Assessment Tool for disaster response. Displays a survivor counter
 ### Settings
 
 Configuration panel with four controls:
+
 - **Server URL** — text input with URL validation; changes trigger WebSocket reconnect
 - **Theme** — dark / light / system picker
 - **RSSI Scanning** — toggle for platform-native WiFi RSSI scanning
@@ -297,6 +296,7 @@ interface SensingFrame {
 ```
 
 The WebSocket service (`ws.service.ts`) handles:
+
 - Automatic reconnection with exponential backoff (1s, 2s, 4s, 8s, 16s)
 - Fallback to simulation after max reconnect attempts
 - Protocol upgrade (`http:` to `ws:`, `https:` to `wss:`)
@@ -307,7 +307,7 @@ The WebSocket service (`ws.service.ts`) handles:
 The REST client (`api.service.ts`) provides:
 
 | Method | Path | Returns |
-|--------|------|---------|
+| -------- | ------ | --------- |
 | `GET` | `/api/pose/status` | `PoseStatus` — server health and capabilities |
 | `GET` | `/api/pose/zones` | `ZoneConfig[]` — configured sensing zones |
 | `GET` | `/api/pose/frames?limit=N` | `HistoricalFrames` — recent frame history |
@@ -330,8 +330,8 @@ npm test
 Runs the Jest test suite via `jest-expo`. Tests cover:
 
 | Category | Files | What Is Tested |
-|----------|-------|----------------|
-| Components | 7 | `ConnectionBanner`, `GaugeArc`, `HudOverlay`, `OccupancyGrid`, `SignalBar`, `SparklineChart`, `StatusDot` |
+| ---------- | ------- | ---------------- |
+| Components | 6 | `ConnectionBanner`, `GaugeArc`, `OccupancyGrid`, `SignalBar`, `SparklineChart`, `StatusDot` |
 | Screens | 5 | `LiveScreen`, `VitalsScreen`, `ZonesScreen`, `MATScreen`, `SettingsScreen` |
 | Services | 4 | `ws.service`, `api.service`, `rssi.service`, `simulation.service` |
 | Stores | 3 | `poseStore`, `matStore`, `settingsStore` |
@@ -341,8 +341,12 @@ Runs the Jest test suite via `jest-expo`. Tests cover:
 ### End-to-End Tests (Maestro)
 
 ```bash
-# Install Maestro CLI
-curl -Ls https://get.maestro.mobile.dev | bash
+# macOS: install the Maestro CLI from its official Homebrew tap.
+brew tap mobile-dev-inc/tap
+brew install mobile-dev-inc/tap/maestro
+
+# Linux/Windows: follow the platform-specific verified installation guide:
+# https://docs.maestro.dev/maestro-cli/how-to-install-maestro-cli
 
 # Run all e2e specs
 maestro test e2e/
@@ -351,7 +355,7 @@ maestro test e2e/
 Maestro YAML specs cover each screen:
 
 | Spec | What It Verifies |
-|------|-----------------|
+| ------ | ----------------- |
 | `live_screen.yaml` | 3D viewer loads, HUD elements visible, mode badge displays |
 | `vitals_screen.yaml` | Breathing and heart rate gauges render with values |
 | `zones_screen.yaml` | Floor plan SVG renders, zone legend visible |
@@ -364,7 +368,7 @@ Maestro YAML specs cover each screen:
 ## Tech Stack
 
 | Layer | Technology | Version |
-|-------|-----------|---------|
+| ------- | ----------- | --------- |
 | Framework | Expo | 55 |
 | UI | React Native | 0.83 |
 | Language | TypeScript | 5.9 |
@@ -391,6 +395,7 @@ Maestro YAML specs cover each screen:
 6. Submit a pull request
 
 Follow the project's existing patterns:
+
 - Components go in `src/components/`
 - Screen-specific components go in `src/screens/<ScreenName>/`
 - Platform-specific files use the `.android.ts` / `.ios.ts` / `.web.ts` suffix convention

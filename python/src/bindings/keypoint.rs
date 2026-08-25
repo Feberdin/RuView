@@ -33,7 +33,7 @@ use wifi_densepose_core::{Confidence, Keypoint, KeypointType};
 // `hash` makes the enum hashable in Python (usable as dict keys + set
 // members) — derived from `Hash` on the Rust side. `frozen` is a
 // hard requirement for `hash` per pyo3 contract.
-#[pyclass(eq, eq_int, hash, frozen, name = "KeypointType")]
+#[pyclass(from_py_object, eq, eq_int, hash, frozen, name = "KeypointType")]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PyKeypointType {
     Nose = 0,
@@ -83,7 +83,10 @@ impl PyKeypointType {
     /// enumeration: `for kp in KeypointType.all(): ...`.
     #[staticmethod]
     fn all() -> Vec<Self> {
-        KeypointType::all().iter().map(|k| PyKeypointType::from_rust(*k)).collect()
+        KeypointType::all()
+            .iter()
+            .map(|k| PyKeypointType::from_rust(*k))
+            .collect()
     }
 
     fn __repr__(&self) -> String {
@@ -177,7 +180,7 @@ impl PyKeypoint {
 /// kp_3d = Keypoint(KeypointType.LeftWrist, 0.2, 0.4, 0.8, z=0.1)
 /// print(kp_3d.position_3d)  # (0.2, 0.4, 0.1)
 /// ```
-#[pyclass(frozen, name = "Keypoint")]
+#[pyclass(from_py_object, frozen, name = "Keypoint")]
 #[derive(Clone)]
 pub struct PyKeypoint {
     inner: Keypoint,
@@ -196,9 +199,8 @@ impl PyKeypoint {
         confidence: f32,
         z: Option<f32>,
     ) -> PyResult<Self> {
-        let conf = Confidence::new(confidence).map_err(|e| {
-            pyo3::exceptions::PyValueError::new_err(e.to_string())
-        })?;
+        let conf = Confidence::new(confidence)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         let inner = match z {
             Some(zv) => Keypoint::new_3d(keypoint_type.as_rust(), x, y, zv, conf),
             None => Keypoint::new(keypoint_type.as_rust(), x, y, conf),
@@ -265,11 +267,18 @@ impl PyKeypoint {
         match self.inner.z {
             Some(z) => format!(
                 "Keypoint(KeypointType.{:?}, x={}, y={}, z={}, confidence={:.4})",
-                self.inner.keypoint_type, self.inner.x, self.inner.y, z, self.inner.confidence.value()
+                self.inner.keypoint_type,
+                self.inner.x,
+                self.inner.y,
+                z,
+                self.inner.confidence.value()
             ),
             None => format!(
                 "Keypoint(KeypointType.{:?}, x={}, y={}, confidence={:.4})",
-                self.inner.keypoint_type, self.inner.x, self.inner.y, self.inner.confidence.value()
+                self.inner.keypoint_type,
+                self.inner.x,
+                self.inner.y,
+                self.inner.confidence.value()
             ),
         }
     }

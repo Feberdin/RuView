@@ -54,20 +54,31 @@ impl Rng {
 // ---------------------------------------------------------------------------
 
 struct TierSpec {
-    label: &'static str,
-    n_active: usize,     // active (non-pilot) subcarriers passed in frame
+    n_active: usize, // active (non-pilot) subcarriers passed in frame
     bandwidth_mhz: u16,
     config: CalibrationConfig,
 }
 
 fn ht20_spec() -> TierSpec {
-    TierSpec { label: "HT20", n_active: 52, bandwidth_mhz: 20, config: CalibrationConfig::ht20() }
+    TierSpec {
+        n_active: 52,
+        bandwidth_mhz: 20,
+        config: CalibrationConfig::ht20(),
+    }
 }
 fn ht40_spec() -> TierSpec {
-    TierSpec { label: "HT40", n_active: 114, bandwidth_mhz: 40, config: CalibrationConfig::ht40() }
+    TierSpec {
+        n_active: 114,
+        bandwidth_mhz: 40,
+        config: CalibrationConfig::ht40(),
+    }
 }
 fn he20_spec() -> TierSpec {
-    TierSpec { label: "HE20", n_active: 242, bandwidth_mhz: 20, config: CalibrationConfig::he20() }
+    TierSpec {
+        n_active: 242,
+        bandwidth_mhz: 20,
+        config: CalibrationConfig::he20(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -75,11 +86,15 @@ fn he20_spec() -> TierSpec {
 // ---------------------------------------------------------------------------
 
 fn ground_truth_amp(n: usize) -> Vec<f32> {
-    (0..n).map(|k| 0.3 + 0.7 * (k as f32 * PI / n as f32).sin().abs()).collect()
+    (0..n)
+        .map(|k| 0.3 + 0.7 * (k as f32 * PI / n as f32).sin().abs())
+        .collect()
 }
 
 fn ground_truth_phase(n: usize) -> Vec<f32> {
-    (0..n).map(|k| (k as f32 * 0.1).rem_euclid(2.0 * PI) - PI).collect()
+    (0..n)
+        .map(|k| (k as f32 * 0.1).rem_euclid(2.0 * PI) - PI)
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +140,11 @@ fn make_perturbed_frame(
     let noise_std = 0.001_f32;
     let mut data = Array2::<Complex64>::zeros((1, n_active));
     for k in 0..n_active {
-        let extra = if perturb_indices.contains(&k) { shift_sigma * amp_sigma } else { 0.0 };
+        let extra = if perturb_indices.contains(&k) {
+            shift_sigma * amp_sigma
+        } else {
+            0.0
+        };
         let a = amp[k] + extra;
         let re = a * phase[k].cos() + noise_std * rng.next_normal();
         let im = a * phase[k].sin() + noise_std * rng.next_normal();
@@ -148,11 +167,18 @@ fn build_baseline(spec: &TierSpec) -> BaselineCalibration {
     let mut recorder = CalibrationRecorder::new(spec.config.clone());
     for _ in 0..600 {
         let frame = make_stationary_frame(
-            spec.bandwidth_mhz, spec.n_active, &amp, &phase, 30.0, &mut rng,
+            spec.bandwidth_mhz,
+            spec.n_active,
+            &amp,
+            &phase,
+            30.0,
+            &mut rng,
         );
         recorder.record(&frame).expect("record should succeed");
     }
-    recorder.finalize().expect("finalize should succeed with 600 frames")
+    recorder
+        .finalize()
+        .expect("finalize should succeed with 600 frames")
 }
 
 // ---------------------------------------------------------------------------
@@ -171,12 +197,18 @@ mod ht20 {
         let mut recorder = CalibrationRecorder::new(spec.config.clone());
         for _ in 0..600 {
             let frame = make_stationary_frame(
-                spec.bandwidth_mhz, spec.n_active, &amp, &phase, 30.0, &mut rng,
+                spec.bandwidth_mhz,
+                spec.n_active,
+                &amp,
+                &phase,
+                30.0,
+                &mut rng,
             );
             recorder.record(&frame).expect("record should succeed");
         }
         assert_eq!(
-            recorder.frames_recorded(), 600,
+            recorder.frames_recorded(),
+            600,
             "HT20: frames_recorded() should equal 600"
         );
     }
@@ -193,7 +225,10 @@ mod ht20 {
             assert!(
                 (got - expected).abs() < tol,
                 "HT20 amp_mean[{}]: got={:.4} expected={:.4} tol={:.4}",
-                k, got, expected, tol
+                k,
+                got,
+                expected,
+                tol
             );
         }
     }
@@ -219,7 +254,8 @@ mod ht20 {
             assert!(
                 baseline.subcarriers[k].amp_variance < 0.1,
                 "HT20 amp_variance[{}]={:.6} must be < 0.1",
-                k, baseline.subcarriers[k].amp_variance
+                k,
+                baseline.subcarriers[k].amp_variance
             );
         }
     }
@@ -232,7 +268,8 @@ mod ht20 {
             assert!(
                 baseline.subcarriers[k].phase_dispersion < 0.05,
                 "HT20 phase_dispersion[{}]={:.6} must be < 0.05",
-                k, baseline.subcarriers[k].phase_dispersion
+                k,
+                baseline.subcarriers[k].phase_dispersion
             );
         }
     }
@@ -245,9 +282,16 @@ mod ht20 {
         let baseline = build_baseline(&spec);
         let mut rng = Rng::new(999);
         let frame = make_stationary_frame(
-            spec.bandwidth_mhz, spec.n_active, &amp, &phase, 30.0, &mut rng,
+            spec.bandwidth_mhz,
+            spec.n_active,
+            &amp,
+            &phase,
+            30.0,
+            &mut rng,
         );
-        let score = baseline.deviation(&frame).expect("deviation should succeed");
+        let score = baseline
+            .deviation(&frame)
+            .expect("deviation should succeed");
         assert!(
             score.amplitude_z_median < 1.5,
             "HT20 stationary: amplitude_z_median={:.3} must be < 1.5",
@@ -275,10 +319,18 @@ mod ht20 {
         let perturb_indices: Vec<usize> = (0..spec.n_active).collect();
         let mut rng = Rng::new(999);
         let frame = make_perturbed_frame(
-            spec.bandwidth_mhz, spec.n_active, &amp, &phase, amp_sigma,
-            &perturb_indices, 3.0, &mut rng,
+            spec.bandwidth_mhz,
+            spec.n_active,
+            &amp,
+            &phase,
+            amp_sigma,
+            &perturb_indices,
+            3.0,
+            &mut rng,
         );
-        let score = baseline.deviation(&frame).expect("deviation should succeed");
+        let score = baseline
+            .deviation(&frame)
+            .expect("deviation should succeed");
         assert!(
             score.amplitude_z_median > 2.5,
             "HT20 perturbed: amplitude_z_median={:.3} must be > 2.5",
@@ -307,11 +359,20 @@ mod ht40 {
         let mut recorder = CalibrationRecorder::new(spec.config.clone());
         for _ in 0..600 {
             let frame = make_stationary_frame(
-                spec.bandwidth_mhz, spec.n_active, &amp, &phase, 30.0, &mut rng,
+                spec.bandwidth_mhz,
+                spec.n_active,
+                &amp,
+                &phase,
+                30.0,
+                &mut rng,
             );
             recorder.record(&frame).expect("record should succeed");
         }
-        assert_eq!(recorder.frames_recorded(), 600, "HT40: frames_recorded() should equal 600");
+        assert_eq!(
+            recorder.frames_recorded(),
+            600,
+            "HT40: frames_recorded() should equal 600"
+        );
     }
 
     #[test]
@@ -326,7 +387,10 @@ mod ht40 {
             assert!(
                 (got - expected).abs() < tol,
                 "HT40 amp_mean[{}]: got={:.4} expected={:.4} tol={:.4}",
-                k, got, expected, tol
+                k,
+                got,
+                expected,
+                tol
             );
         }
     }
@@ -339,7 +403,8 @@ mod ht40 {
             assert!(
                 baseline.subcarriers[k].phase_dispersion < 0.05,
                 "HT40 phase_dispersion[{}]={:.6} must be < 0.05",
-                k, baseline.subcarriers[k].phase_dispersion
+                k,
+                baseline.subcarriers[k].phase_dispersion
             );
         }
     }
@@ -352,9 +417,16 @@ mod ht40 {
         let baseline = build_baseline(&spec);
         let mut rng = Rng::new(999);
         let frame = make_stationary_frame(
-            spec.bandwidth_mhz, spec.n_active, &amp, &phase, 30.0, &mut rng,
+            spec.bandwidth_mhz,
+            spec.n_active,
+            &amp,
+            &phase,
+            30.0,
+            &mut rng,
         );
-        let score = baseline.deviation(&frame).expect("deviation should succeed");
+        let score = baseline
+            .deviation(&frame)
+            .expect("deviation should succeed");
         assert!(
             !score.motion_flagged,
             "HT40 stationary: motion_flagged must be false"
@@ -376,10 +448,18 @@ mod ht40 {
         let perturb_indices: Vec<usize> = (0..spec.n_active).collect();
         let mut rng = Rng::new(999);
         let frame = make_perturbed_frame(
-            spec.bandwidth_mhz, spec.n_active, &amp, &phase, amp_sigma,
-            &perturb_indices, 3.0, &mut rng,
+            spec.bandwidth_mhz,
+            spec.n_active,
+            &amp,
+            &phase,
+            amp_sigma,
+            &perturb_indices,
+            3.0,
+            &mut rng,
         );
-        let score = baseline.deviation(&frame).expect("deviation should succeed");
+        let score = baseline
+            .deviation(&frame)
+            .expect("deviation should succeed");
         assert!(
             score.motion_flagged,
             "HT40 perturbed: motion_flagged must be true for 3σ perturbation"
@@ -403,11 +483,20 @@ mod he20 {
         let mut recorder = CalibrationRecorder::new(spec.config.clone());
         for _ in 0..600 {
             let frame = make_stationary_frame(
-                spec.bandwidth_mhz, spec.n_active, &amp, &phase, 30.0, &mut rng,
+                spec.bandwidth_mhz,
+                spec.n_active,
+                &amp,
+                &phase,
+                30.0,
+                &mut rng,
             );
             recorder.record(&frame).expect("record should succeed");
         }
-        assert_eq!(recorder.frames_recorded(), 600, "HE20: frames_recorded() should equal 600");
+        assert_eq!(
+            recorder.frames_recorded(),
+            600,
+            "HE20: frames_recorded() should equal 600"
+        );
     }
 
     #[test]
@@ -422,7 +511,10 @@ mod he20 {
             assert!(
                 (got - expected).abs() < tol,
                 "HE20 amp_mean[{}]: got={:.4} expected={:.4} tol={:.4}",
-                k, got, expected, tol
+                k,
+                got,
+                expected,
+                tol
             );
         }
     }
@@ -435,7 +527,8 @@ mod he20 {
             assert!(
                 baseline.subcarriers[k].phase_dispersion < 0.05,
                 "HE20 phase_dispersion[{}]={:.6} must be < 0.05",
-                k, baseline.subcarriers[k].phase_dispersion
+                k,
+                baseline.subcarriers[k].phase_dispersion
             );
         }
     }
@@ -448,9 +541,16 @@ mod he20 {
         let baseline = build_baseline(&spec);
         let mut rng = Rng::new(999);
         let frame = make_stationary_frame(
-            spec.bandwidth_mhz, spec.n_active, &amp, &phase, 30.0, &mut rng,
+            spec.bandwidth_mhz,
+            spec.n_active,
+            &amp,
+            &phase,
+            30.0,
+            &mut rng,
         );
-        let score = baseline.deviation(&frame).expect("deviation should succeed");
+        let score = baseline
+            .deviation(&frame)
+            .expect("deviation should succeed");
         assert!(
             !score.motion_flagged,
             "HE20 stationary: motion_flagged must be false"
@@ -472,10 +572,18 @@ mod he20 {
         let perturb_indices: Vec<usize> = (0..spec.n_active).collect();
         let mut rng = Rng::new(999);
         let frame = make_perturbed_frame(
-            spec.bandwidth_mhz, spec.n_active, &amp, &phase, amp_sigma,
-            &perturb_indices, 3.0, &mut rng,
+            spec.bandwidth_mhz,
+            spec.n_active,
+            &amp,
+            &phase,
+            amp_sigma,
+            &perturb_indices,
+            3.0,
+            &mut rng,
         );
-        let score = baseline.deviation(&frame).expect("deviation should succeed");
+        let score = baseline
+            .deviation(&frame)
+            .expect("deviation should succeed");
         assert!(
             score.motion_flagged,
             "HE20 perturbed: motion_flagged must be true for 3σ perturbation"

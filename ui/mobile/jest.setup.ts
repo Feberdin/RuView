@@ -6,6 +6,12 @@ jest.mock('react-native-wifi-reborn', () => ({
   loadWifiList: jest.fn(async () => []),
 }));
 
+// Reanimated 4 delegates its runtime primitives to react-native-worklets.
+// Mock that native boundary first so the public Reanimated mock can load.
+jest.mock('react-native-worklets', () =>
+  require('react-native-worklets/src/mock')
+);
+
 jest.mock('react-native-reanimated', () =>
   require('react-native-reanimated/mock')
 );

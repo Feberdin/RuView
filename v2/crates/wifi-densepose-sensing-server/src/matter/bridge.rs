@@ -22,10 +22,7 @@
 
 use crate::mqtt::discovery::EntityKind;
 
-use super::clusters::{
-    matter_mapping, MatterClusterMapping, DEVICE_TYPE_AGGREGATOR,
-    DEVICE_TYPE_BRIDGED_NODE,
-};
+use super::clusters::{matter_mapping, DEVICE_TYPE_AGGREGATOR};
 
 /// One endpoint on the Matter device tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,7 +104,7 @@ pub fn build_bridge_tree(nodes: &[(String, String, Vec<EntityKind>)]) -> BridgeT
 
             let ep_id = next_endpoint;
             next_endpoint += 1;
-            let mut ep = Endpoint {
+            let ep = Endpoint {
                 endpoint_id: ep_id,
                 device_type: m.device_type,
                 label: format!("{:?}", entity),
@@ -179,7 +176,10 @@ impl BridgeTree {
 pub enum EndpointRef<'a> {
     Root(&'a Endpoint),
     BridgedNode(&'a NodeBranch),
-    Child { branch: &'a NodeBranch, child: &'a Endpoint },
+    Child {
+        branch: &'a NodeBranch,
+        child: &'a Endpoint,
+    },
 }
 
 #[cfg(test)]
@@ -305,8 +305,16 @@ mod tests {
     #[test]
     fn multi_node_tree_keeps_per_node_isolation() {
         let nodes = vec![
-            ("aabb".into(), "Bedroom".into(), vec![Presence, FallDetected]),
-            ("ccdd".into(), "Living".into(), vec![Presence, MeetingInProgress]),
+            (
+                "aabb".into(),
+                "Bedroom".into(),
+                vec![Presence, FallDetected],
+            ),
+            (
+                "ccdd".into(),
+                "Living".into(),
+                vec![Presence, MeetingInProgress],
+            ),
         ];
         let tree = build_bridge_tree(&nodes);
         assert_eq!(tree.nodes.len(), 2);

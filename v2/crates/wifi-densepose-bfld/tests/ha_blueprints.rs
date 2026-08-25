@@ -1,21 +1,17 @@
 //! Validate the cog-ha-matter HA blueprints structurally — they're shipped
 //! YAML, so the test embeds each file at compile time via `include_str!` and
-//! string-checks the required HA-blueprint fields. Avoids adding a serde_yaml
+//! string-checks the required HA-blueprint fields. Avoids adding a `serde_yaml`
 //! dep to BFLD for what is effectively a documentation-of-record asset.
 //!
 //! ADR-122 §2.6 specifies three blueprints; this test pins their structure.
 
 #![cfg(feature = "std")]
 
-const PRESENCE_LIGHTING: &str = include_str!(
-    "../../cog-ha-matter/blueprints/bfld/presence-lighting.yaml"
-);
-const MOTION_HVAC: &str = include_str!(
-    "../../cog-ha-matter/blueprints/bfld/motion-hvac.yaml"
-);
-const IDENTITY_RISK: &str = include_str!(
-    "../../cog-ha-matter/blueprints/bfld/identity-risk-anomaly.yaml"
-);
+const PRESENCE_LIGHTING: &str =
+    include_str!("../../cog-ha-matter/blueprints/bfld/presence-lighting.yaml");
+const MOTION_HVAC: &str = include_str!("../../cog-ha-matter/blueprints/bfld/motion-hvac.yaml");
+const IDENTITY_RISK: &str =
+    include_str!("../../cog-ha-matter/blueprints/bfld/identity-risk-anomaly.yaml");
 
 fn assert_required_blueprint_fields(yaml: &str, name_substring: &str, label: &str) {
     assert!(
@@ -81,9 +77,17 @@ fn identity_risk_blueprint_is_structurally_valid() {
 #[test]
 fn blueprints_carry_source_url_pointing_at_canonical_path() {
     for (label, yaml, fname) in [
-        ("presence-lighting", PRESENCE_LIGHTING, "presence-lighting.yaml"),
+        (
+            "presence-lighting",
+            PRESENCE_LIGHTING,
+            "presence-lighting.yaml",
+        ),
         ("motion-hvac", MOTION_HVAC, "motion-hvac.yaml"),
-        ("identity-risk-anomaly", IDENTITY_RISK, "identity-risk-anomaly.yaml"),
+        (
+            "identity-risk-anomaly",
+            IDENTITY_RISK,
+            "identity-risk-anomaly.yaml",
+        ),
     ] {
         let needle = format!(
             "source_url: https://github.com/ruvnet/RuView/blob/main/v2/crates/cog-ha-matter/blueprints/bfld/{fname}"

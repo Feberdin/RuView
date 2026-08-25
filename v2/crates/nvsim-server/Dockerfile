@@ -8,9 +8,6 @@
 
 FROM rust:1.81-slim-bookworm AS builder
 WORKDIR /build
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libssl-dev ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
 
 # Copy a stub workspace Cargo.toml + Cargo.lock that only references
 # nvsim and nvsim-server. This dodges the full RuView workspace's
@@ -47,8 +44,11 @@ EOF
 RUN cargo build --release -p nvsim-server --bin nvsim-server
 
 FROM debian:bookworm-slim
+ARG CA_CERTIFICATES_VERSION=20250419~deb12u1
+ARG CURL_VERSION=7.88.1-10+deb12u15
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl \
+    ca-certificates="${CA_CERTIFICATES_VERSION}" \
+    curl="${CURL_VERSION}" \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r nvsim && useradd -r -g nvsim nvsim
 
