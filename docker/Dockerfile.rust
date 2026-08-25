@@ -10,6 +10,7 @@ WORKDIR /build
 # Copy workspace files
 COPY v2/Cargo.toml v2/Cargo.lock ./
 COPY v2/crates/ ./crates/
+COPY v2/vendor/midstreamer-temporal-compare/ /build/vendor/midstreamer-temporal-compare/
 
 # Copy vendored RuVector crates
 COPY vendor/ruvector/ /build/vendor/ruvector/
@@ -62,9 +63,9 @@ RUN set -e; \
     echo "image assets OK"
 
 # Optional bearer-token auth on /api/v1/*: leave unset for LAN-mode (default),
-# set to enforce `Authorization: Bearer <token>` (see bearer_auth module, #443).
-#   docker run -e RUVIEW_API_TOKEN=$(openssl rand -hex 32) ...
-ENV RUVIEW_API_TOKEN=
+# or inject it only at runtime to enforce `Authorization: Bearer <token>` (see
+# bearer_auth module, #443). Keeping the variable out of the image metadata
+# also prevents secret scanners from treating the image as a credential sink.
 
 # HTTP API
 EXPOSE 3000

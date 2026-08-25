@@ -6,7 +6,10 @@
 # Run:
 #   docker run --rm -p 7878:7878 nvsim-server:latest
 
-FROM rust:1.81-slim-bookworm AS builder
+# Keep Cargo new enough for Edition 2024 dependencies recorded in Cargo.lock.
+# The workspace itself remains on Edition 2021; this only affects dependency
+# manifest parsing during the reproducible container build.
+FROM rust:1.89-slim-bookworm AS builder
 WORKDIR /build
 
 # Copy a stub workspace Cargo.toml + Cargo.lock that only references
