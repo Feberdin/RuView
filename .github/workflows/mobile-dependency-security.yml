@@ -1,4 +1,4 @@
-# Purpose: Guard the focused ui/mobile js-yaml security override.
+# Purpose: Guard the reviewed ui/mobile dependency security overrides.
 # Input: Mobile package metadata, lockfile, and the compatibility verifier.
 # Output: A reproducible install plus version, runtime, and npm-advisory checks.
 # Invariants/debugging:
@@ -33,8 +33,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify-js-yaml:
-    name: Verify patched js-yaml dependency
+  verify-dependencies:
+    name: Verify patched mobile dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -58,7 +58,7 @@ jobs:
       - name: Install the reviewed lockfile
         run: npm ci --legacy-peer-deps --ignore-scripts
 
-      # Why this exists: it checks the resolved version, the real Istanbul YAML
-      # consumer, and npm's live advisory result with actionable errors.
-      - name: Verify js-yaml security and compatibility
+      # Why this exists: it checks every reviewed override, representative real
+      # consumers, and npm's live advisory result with actionable errors.
+      - name: Verify dependency security and compatibility
         run: npm run test:dependency-security

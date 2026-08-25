@@ -1,11 +1,11 @@
 /**
- * Purpose: Prove that the mobile dependency tree uses the patched js-yaml
- * release and that Istanbul can still load YAML coverage configuration.
+ * Purpose: Prove that the mobile dependency tree uses the reviewed js-yaml and
+ * shell-quote security releases without breaking their real consumers.
  * Input: A completed `npm ci --legacy-peer-deps` in ui/mobile plus npm registry
  * audit metadata. Output: concise success messages or an actionable failure.
  * Invariants: no credentials are read or printed; temporary files are removed;
- * unrelated npm advisories are reported by npm but do not hide js-yaml status.
- * Debugging: run `npm ls js-yaml --all` and then this file directly with Node.
+ * unrelated npm advisories remain visible but cannot hide either package.
+ * Debugging: run `npm ls js-yaml shell-quote --all`, then execute this file.
  */
 
 'use strict';
@@ -16,8 +16,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { loadNycConfig } = require('@istanbuljs/load-nyc-config');
+const shellQuote = require('shell-quote');
 
 const EXPECTED_JS_YAML_VERSION = '4.3.1';
+const EXPECTED_SHELL_QUOTE_VERSION = '1.9.0';
 
 /** Why this exists: the npm override must resolve every consumer to the exact
  * reviewed security release, not merely add a second patched copy. */
@@ -65,6 +67,59 @@ function verifyInstalledVersion() {
       `found: ${[...resolvedVersions].join(', ') || 'none'}`,
   );
   console.log(`js-yaml-version: ${packageMetadata.version} (all consumers)`);
+}
+
+/** Why this exists: shell-quote is transitive, so an explicit override and a
+ * complete-tree check prevent a vulnerable nested copy from returning. The
+ * parse/quote assertions also protect the API used by current consumers. */
+function verifyShellQuoteVersionAndCompatibility() {
+  const packageMetadata = require('shell-quote/package.json');
+  assert.equal(
+    packageMetadata.version,
+    EXPECTED_SHELL_QUOTE_VERSION,
+    `Expected shell-quote ${EXPECTED_SHELL_QUOTE_VERSION}, found ${packageMetadata.version}. ` +
+      'Run npm install --package-lock-only --legacy-peer-deps and review the lockfile.',
+  );
+
+  const dependencyTree = spawnSync(
+    'npm',
+    ['ls', 'shell-quote', '--all', '--json'],
+    {
+      cwd: path.resolve(__dirname, '..'),
+      encoding: 'utf8',
+      shell: false,
+    },
+  );
+  if (dependencyTree.status !== 0 || !dependencyTree.stdout) {
+    throw new Error(
+      `npm could not resolve the complete shell-quote tree (exit ${dependencyTree.status ?? 'unknown'}). ` +
+        `stderr: ${dependencyTree.stderr.trim() || 'empty'}`,
+    );
+  }
+
+  const resolvedVersions = new Set();
+  const visit = (node) => {
+    const shellQuoteNode = node.dependencies?.['shell-quote'];
+    if (shellQuoteNode?.version) {
+      resolvedVersions.add(shellQuoteNode.version);
+    }
+    for (const dependency of Object.values(node.dependencies ?? {})) {
+      visit(dependency);
+    }
+  };
+  visit(JSON.parse(dependencyTree.stdout));
+
+  assert.deepEqual(
+    [...resolvedVersions],
+    [EXPECTED_SHELL_QUOTE_VERSION],
+    `Expected every shell-quote consumer to resolve to ${EXPECTED_SHELL_QUOTE_VERSION}, ` +
+      `found: ${[...resolvedVersions].join(', ') || 'none'}`,
+  );
+  assert.deepEqual(shellQuote.parse("alpha 'two words'"), ['alpha', 'two words']);
+  assert.equal(shellQuote.quote(['alpha', 'two words']), "alpha 'two words'");
+  console.log(
+    `shell-quote-version: ${packageMetadata.version} (all consumers; API compatible)`,
+  );
 }
 
 /** Why this exists: @istanbuljs/load-nyc-config is the consumer that previously
@@ -118,21 +173,24 @@ function verifyNpmAuditResult() {
     throw new Error(`npm audit returned invalid JSON: ${error.message}`);
   }
 
-  const jsYamlAdvisory = report.vulnerabilities?.['js-yaml'];
-  assert.equal(
-    jsYamlAdvisory,
-    undefined,
-    `npm still reports a js-yaml advisory: ${JSON.stringify(jsYamlAdvisory)}`,
-  );
+  for (const dependencyName of ['js-yaml', 'shell-quote']) {
+    const advisory = report.vulnerabilities?.[dependencyName];
+    assert.equal(
+      advisory,
+      undefined,
+      `npm still reports a ${dependencyName} advisory: ${JSON.stringify(advisory)}`,
+    );
+  }
 
   const counts = report.metadata?.vulnerabilities ?? {};
   console.log(
-    `js-yaml-audit: clear (other mobile advisories: ${counts.total ?? 'unknown'})`,
+    `reviewed-dependency-audit: clear (other mobile advisories: ${counts.total ?? 'unknown'})`,
   );
 }
 
 async function main() {
   verifyInstalledVersion();
+  verifyShellQuoteVersionAndCompatibility();
   await verifyIstanbulYamlCompatibility();
   verifyNpmAuditResult();
 }
