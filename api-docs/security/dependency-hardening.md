@@ -113,6 +113,46 @@ and changes only the vulnerable dependency selection. Its unit and property
 tests are part of the verification record. The exception must be removed when a
 compatible fixed upstream release becomes available.
 
+`rumqttc` 0.25.1 still pins the unsupported `rustls-webpki` 0.102 line. The MQTT
+features now select rumqttc's supported native TLS backend instead: OpenSSL on
+Linux, Security Framework on macOS, and SChannel on Windows. The system trust
+store remains enforced, while the four WebPKI advisories and their vulnerable
+lockfile entry are removed.
+
+Tauri's Linux GTK3 dependency still requires `glib` 0.18.5, so forcing 0.20
+would mix incompatible GTK binding generations. The workspace uses the exact
+crates.io 0.18.5 source with upstream pull request `gtk-rs/gtk-rs-core#1343`'s
+two-line `VariantStrIter` undefined-behaviour fix backported. Its archive hash,
+license, commit, exact delta, verification, and removal condition are recorded
+in `v2/vendor/glib-0.18.5/FEBERDIN-PATCH.md`.
+
+Three workspace dependency entries referred to crates removed in upstream issue
+578. Cargo tolerated the unused entries, but Dependabot could not fetch the
+nonexistent paths and aborted security updates. Those dead entries are removed;
+the existing workspace comments continue to document where their planned
+functionality lives.
+
+### Reviewed Rust maintenance exceptions
+
+RustSec distinguishes known vulnerabilities from informational maintenance
+warnings. The security gate still rejects every vulnerability and every
+unexpected warning. It accepts only the exact `unmaintained` advisory IDs in
+`.github/scripts/cargo-audit.sh`; none of them currently reports exploitable
+code. The exceptions are grouped by their shortest reviewed dependency path:
+
+| Dependency path | Accepted maintenance IDs | Why it remains | Removal condition |
+| --- | --- | --- | --- |
+| Tauri 2.11 / Wry -> Linux GTK3 | RUSTSEC-2024-0411 through RUSTSEC-2024-0420, plus RUSTSEC-2024-0370 | Tauri's supported Linux webview stack still selects the GTK3 binding generation. Mixing GTK binding generations is not ABI-safe. The concrete GLib undefined behaviour is separately fixed by the reviewed local patch. | Remove when Tauri/Wry ships a compatible maintained Linux GUI stack, then test desktop builds on Linux, macOS, and Windows. |
+| Tauri -> `urlpattern` -> UNIC 0.9 | RUSTSEC-2025-0075, -0080, -0081, -0098, -0100 | Current Tauri utilities resolve this parser chain; the advisories report maintenance status, not a vulnerability. | Remove when Tauri or `urlpattern` drops UNIC 0.9, then regenerate and audit the lockfile. |
+| `geo` -> `rstar` -> `heapless` -> `atomic-polyfill` | RUSTSEC-2023-0089 | The MAT geometry implementation still uses the compatible geo 0.27 API. | Upgrade geo/rstar under focused geometry tests and remove the ID once `atomic-polyfill` leaves the lockfile. |
+| RuVector -> `hnsw_rs` -> `bincode` 1/2 | RUSTSEC-2025-0141 | The maintained RuVector integration currently resolves both serialization generations; the advisory is maintenance-only. | Upgrade RuVector/hnsw when their public releases remove bincode, then rerun vector persistence compatibility tests. |
+| Candle/nalgebra -> `paste` | RUSTSEC-2024-0436 | Current supported numerical crates still resolve the macro; no vulnerable behavior is reported. | Remove after upstream numerical releases eliminate `paste` and model tests remain green. |
+| CLI/training -> `indicatif` -> `number_prefix` | RUSTSEC-2025-0119 | The current progress display API remains compatible and the advisory is maintenance-only. | Upgrade indicatif in a dedicated UX change and verify CLI snapshots/progress behavior. |
+
+Adding an ID requires a reviewed dependency path, a non-vulnerability advisory,
+a removal condition, and a pull request changing both this table and the audit
+script. A vulnerability ID must never be added to the exception list.
+
 ## Preventive controls
 
 - One root `.github/dependabot.yml` covers every maintained package directory;
@@ -144,8 +184,8 @@ done
 
 pip-audit --strict --requirement requirements.txt
 pip-audit --strict --requirement aether-arena/space/requirements.txt
-(cd python && cargo audit --deny warnings)
-(cd v2 && cargo audit --deny warnings)
+(cd python && ../.github/scripts/cargo-audit.sh)
+(cd v2 && ../.github/scripts/cargo-audit.sh)
 gitleaks git --redact --no-banner
 gitleaks dir --redact --no-banner .
 ```
