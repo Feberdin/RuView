@@ -71,10 +71,10 @@ thiserror = "1"
 # ADR-115 §3.8 — MQTT publisher (HA-DISCO).
 # Gated behind the `mqtt` feature so the default binary stays small for users
 # who don't need Home Assistant integration. `rumqttc` is the chosen Rust MQTT
-# client (ADR-115 §10 references). `rustls` is preferred over openssl on
-# Windows to keep parity with the rest of the workspace (`ureq` above also
-# uses rustls).
-rumqttc   = { version = "0.25.1", default-features = false, features = ["use-rustls"], optional = true }
+# client (ADR-115 §10 references). The platform-native TLS backend avoids the
+# upstream client's vulnerable, currently unpatched rustls-webpki 0.102 line;
+# Linux uses OpenSSL, macOS Security Framework, and Windows SChannel.
+rumqttc   = { version = "0.25.1", default-features = false, features = ["use-native-tls"], optional = true }
 
 [features]
 default = []

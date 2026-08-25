@@ -20,6 +20,7 @@ WORKDIR /build
 
 COPY v2/Cargo.toml v2/Cargo.lock ./
 COPY v2/crates/ ./crates/
+COPY v2/vendor/glib-0.18.5/ /build/vendor/glib-0.18.5/
 COPY v2/vendor/midstreamer-temporal-compare/ /build/vendor/midstreamer-temporal-compare/
 COPY vendor/ruvector/ /build/vendor/ruvector/
 

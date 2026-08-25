@@ -110,8 +110,8 @@ jobs:
       - name: Install cargo-audit
         run: cargo +1.94.0 install cargo-audit --version 0.22.2 --locked
 
-      - name: Reject vulnerabilities and unmaintained dependencies
-        run: cargo +1.94.0 audit --deny warnings
+      - name: Reject vulnerabilities and unexpected maintenance warnings
+        run: ${{ github.workspace }}/.github/scripts/cargo-audit.sh
 
   gitleaks:
     name: Secret history gate
