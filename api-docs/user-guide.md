@@ -22,6 +22,7 @@ WiFi DensePose turns commodity WiFi signals into real-time human pose estimation
    - [ESP32-S3 (Full CSI)](#esp32-s3-full-csi)
    - [ESP32 Multistatic Mesh (Advanced)](#esp32-multistatic-mesh-advanced)
    - [Connect Mesh Data to the Dashboard and Observatory](#connect-mesh-data-to-the-dashboard-and-observatory)
+   - [Cognitum Spaces activation](#cognitum-spaces-activation)
    - [Cognitum Seed Integration (ADR-069)](#cognitum-seed-integration-adr-069)
 5. [REST API Reference](#rest-api-reference)
 6. [WebSocket Streaming](#websocket-streaming)
@@ -38,6 +39,7 @@ WiFi DensePose turns commodity WiFi signals into real-time human pose estimation
 14. [Training a Model](#training-a-model)
     - [CRV Signal-Line Protocol](#crv-signal-line-protocol)
 14. [RVF Model Containers](#rvf-model-containers)
+14. [Perception Certificate Spine (Developer Preview, ADR-300)](#perception-certificate-spine-developer-preview-adr-297)
 14. [Hardware Setup](#hardware-setup)
     - [ESP32-S3 Mesh](#esp32-s3-mesh)
     - [Intel 5300 / Atheros NIC](#intel-5300--atheros-nic)
@@ -73,7 +75,7 @@ WiFi DensePose turns commodity WiFi signals into real-time human pose estimation
 
 | Option | Cost | Capabilities |
 |--------|------|-------------|
-| ESP32-S3 mesh (3-6 boards) | ~$54 | Full CSI: pose, breathing, heartbeat, presence |
+| ESP32-S3 mesh (3-6 boards) | ~$54 | CSI capture for presence, motion, and vital-sign heuristics; live 17-keypoint pose remains below-target and is not a validated capability |
 | Intel 5300 / Atheros AR9580 | $50-100 | Full CSI with 3x3 MIMO (Linux only) |
 | Any WiFi laptop | $0 | RSSI-only: coarse presence and motion detection |
 
@@ -135,7 +137,7 @@ The compiled binary is at `target/release/sensing-server`.
 
 ### From crates.io (Individual Crates)
 
-All 16 crates are published to crates.io at v0.3.0. Add individual crates to your own Rust project:
+The workspace's crates publish independently, so versions vary crate to crate (`wifi-densepose-core` is at 0.3.2, `wifi-densepose-signal` at 0.3.6, etc. as of this writing) — `cargo add` resolves each to its own latest by default, so you don't need to track exact numbers yourself. Add individual crates to your own Rust project:
 
 ```bash
 # Core types and traits
@@ -161,6 +163,11 @@ cargo add wifi-densepose-wasm
 
 # WASM edge runtime (lightweight, for embedded/IoT)
 cargo add wifi-densepose-wasm-edge
+
+# Coherent wideband RF tomography research crate (ADR-287) — synthetic
+# stepped-frequency backprojection reconstruction. SYNTHETIC/L0 evidence
+# only; not wired into any sensing pipeline above. See its own README.
+cargo add wifi-densepose-sar
 ```
 
 See the full crate list and dependency order in [CLAUDE.md](../CLAUDE.md#crate-publishing-order).
@@ -419,6 +426,57 @@ curl http://localhost:3000/api/v1/sensing/latest
 
 If the ESP32 nodes are provisioned with `--target-ip <AGGREGATOR_HOST>`, that IP must be the machine running `sensing-server`. Only one process can receive UDP `:5005` at a time, so leave the standalone hardware `aggregator` off while the dashboard or Observatory is live.
 
+### Cognitum Spaces activation
+
+Cognitum Spaces gives RuView a tenant/workspace-scoped semantic world model
+without uploading raw RF/CSI, recordings, pose frames, vital waveforms, or
+identity observations. It represents sites, buildings, floors, bounded
+rooms/spaces, zones, anonymous entities, semantic events, and alerts.
+
+Activate the public RuView OAuth client with Authorization Code + PKCE:
+
+```bash
+wifi-densepose login --spaces
+wifi-densepose whoami
+wifi-densepose spaces --resource sites --limit 50
+wifi-densepose spaces --resource events --limit 25
+```
+
+The login requests `sensing:read spaces:read`. That consent is read-only: it
+does not grant publication, pairing, policy approval, command, or actuator
+authority. Versioned collections are `sites`, `buildings`, `floors`,
+`spaces`, `zones`, `entities`, `events`, and `alerts`. A returned
+`nextCursor` is opaque and valid only for the same collection.
+
+The dependency-free contributor harness exposes the same read path:
+
+```bash
+npx @ruvnet/ruview@0.5.0 spaces --resource alerts --limit 25
+npx @ruvnet/ruview@0.5.0 mcp start
+```
+
+Its MCP tool is `ruview_spaces_list`. MCP reads are OAuth-only, use the fixed
+Cognitum API origin, and require the explicit guarded-tool opt-in. The harness
+does not accept an arbitrary credential path or API origin.
+
+For service compatibility, `wifi-densepose spaces` can read
+`COGNITUM_SPACES_API` at request time. API-key access to a versioned collection
+also requires `--workspace <uuid>`; OAuth derives the workspace from the
+signed token. Never print or commit either credential.
+
+Every response is bounded and revalidated. Raw-sensing aliases, malformed
+hierarchy, non-anonymous person/track entities, invalid timestamps, stale
+confidence, and oversized structures fail closed. Empty data means no
+authorized state is present; it does not prove that a physical site is empty.
+
+RuVector spatial memory remains physically separated by tenant and workspace.
+Agents observe or recommend by default. Any consequential execution requires a
+separate policy/grant/approval decision and produces a signed, hash-chained
+receipt; the Spaces read token can never satisfy that gate.
+
+See ADR-325, ADR-326, and ADR-327 for the activation, memory, and governed-action
+decisions.
+
 ### Cognitum Seed Integration (ADR-069)
 
 Connect an ESP32-S3 to a [Cognitum Seed](https://cognitum.one) (Pi Zero 2 W, ~$15) for persistent vector storage, kNN similarity search, cryptographic witness chain, and AI-accessible sensing via MCP proxy.
@@ -522,6 +580,25 @@ Base URL: `http://localhost:3000` (Docker) or `http://localhost:8080` (binary de
 | `GET` | `/api/v1/mesh` | ADR-110 fleet-wide mesh sync map ([iter 29](adr/ADR-110-esp32-c6-firmware-extension.md)) | `{"nodes":{"9":{...},"12":{...}},"total":2}` |
 | `GET` | `/api/v1/nodes/:id/sync` | Single-node mesh sync snapshot (or 404) | `{"offset_us":1163565,"is_leader":false,...}` |
 | `GET` | `/api/v1/mesh/metrics` | ADR-110 mesh state in Prometheus exposition format ([iter 36](adr/ADR-110-esp32-c6-firmware-extension.md)) | `wifi_densepose_mesh_offset_us{node="9"} 1163565\n…` |
+| `GET` | `/api/field` | ADR-262 P3 — latest **signed RuField `FieldEvent`s** from the live sensing cycle, plus the signer pubkey + a `dev_signing_key` flag. Only egress-safe (P1/P2) events are surfaced; identity/biometric (P4/P5) and raw (P0) are held edge-local | `{"spec":"rufield","signer_pubkey_hex":"…","dev_signing_key":true,"events":[…]}` |
+
+### RuField surface (ADR-262 P3)
+
+RuView's live WiFi-CSI sensing now also speaks the standalone **RuField MFS** wire format. Each governed sensing cycle is converted (via the `wifi-densepose-rufield` anti-corruption bridge) into a **signed** `FieldEvent` (`Modality::WifiCsi`, ed25519 `ProvenanceRef`) and surfaced on two additive endpoints:
+
+- `GET /api/field` — the most recent signed events (JSON).
+- `GET /ws/field` — a WebSocket that streams each cycle's signed event (mirrors `/ws/sensing`).
+
+```bash
+curl -s http://localhost:3000/api/field | python -m json.tool          # latest signed FieldEvents
+python -c "import asyncio,websockets; asyncio.run((lambda: websockets.connect('ws://localhost:8765/ws/field'))())"  # stream
+```
+
+Privacy is fail-closed: only egress-safe **P1/P2** events leave the box — raw (P0) and identity/biometric/aggregate (P3–P5) cycles are held **edge-local** and never appear on these endpoints; a no-presence cycle emits **no event**.
+
+**Signing key:** the surface signs with a **dedicated dev/sensing key**, seeded from `WDP_RUFIELD_SIGNING_SEED` (a 64-char hex string or a ≥32-byte value); when unset it falls back to a deterministic dev default and logs a `WARN` (the `dev_signing_key` flag in `/api/field` reflects this). This is a standalone key pending the ADR-262 §8 Q1 key-ownership decision — set `WDP_RUFIELD_SIGNING_SEED` for any real deployment.
+
+> **Honesty (ADR-262 §0/§6):** this is real plumbing on a live endpoint, **not an accuracy claim.** It is the single-link CSI sensing with its existing caveats (no validated room-coordinate accuracy — positions are the "strongest field peak", not calibrated triangulation).
 
 ### Example: Get fleet mesh state (ADR-110)
 
@@ -1113,7 +1190,7 @@ The Observatory is an immersive Three.js visualization that renders WiFi sensing
 
 A pretrained CSI encoder + presence-detection head is published on Hugging Face at [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained). It was trained on 60,630 frames / 610,615 contrastive triplets (12.2M steps, final loss 0.065) and reports **82.3% held-out temporal-triplet accuracy** (the older "100% presence" figure was measured on a single-class recording and has been retracted) and ~164k embeddings/sec on an Apple M4 Pro.
 
-> **Results & proof.** The SOTA 17-keypoint pose model is published separately at [`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose) — **82.69% torso-PCK@20** on MM-Fi (83.59% ensemble + TTA), beating MultiFormer (72.25%) and CSI2Pose (68.41%). Browse the auditable [AetherArena leaderboard Space](https://huggingface.co/spaces/ruvnet/aether-arena), the full [MM-Fi study](benchmarks/mmfi-wifi-sensing-study.md), and the [efficiency frontier](benchmarks/wifi-pose-efficiency-frontier.md). Reproduce the deterministic pipeline proof with `python archive/v1/data/proof/verify.py` (must print `VERDICT: PASS`; see [ADR-147 benchmark proof](adr/ADR-147-benchmark-proof.md) and [WITNESS-LOG-028](WITNESS-LOG-028.md)).
+> **Results & proof.** The SOTA 17-keypoint pose model is published separately at [`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose) — **82.69% torso-PCK@20** on MM-Fi (83.59% ensemble + TTA), beating MultiFormer (72.25%) and CSI2Pose (68.41%). Browse the auditable [AetherArena leaderboard Space](https://huggingface.co/spaces/ruvnet/aether-arena), the full [MM-Fi study](benchmarks/mmfi-wifi-sensing-study.md), and the [efficiency frontier](benchmarks/wifi-pose-efficiency-frontier.md). Reproduce the deterministic pipeline proof with `python archive/v1/data/proof/verify.py` (must print `VERDICT: PASS`; see [ADR-168 benchmark proof](adr/ADR-168-benchmark-proof.md) and [WITNESS-LOG-028](WITNESS-LOG-028.md)).
 
 What it ships (and what it does not):
 
@@ -1122,7 +1199,36 @@ What it ships (and what it does not):
 | Presence detection (occupied / empty) | ✅ Trained head — v2 encoder reports 82.3% held-out temporal-triplet acc (v1's "100% on validation" was a single-class recording — retracted, [#882](https://github.com/ruvnet/RuView/issues/882)) |
 | 128-dim CSI embeddings (re-ID, similarity, downstream training) | ✅ Trained encoder |
 | Single-person breathing / heart-rate | ⚠️ Server still uses heuristic DSP — model does not replace this yet |
-| 17-keypoint full-body pose | 🔬 No keypoint weights shipped yet — pose pipeline runs but without a learned head |
+| 17-keypoint full-body pose | 🔬 This HF bundle ships no keypoint head — but real pose weights exist elsewhere; see the tier table below |
+
+### Model weights: what's real, what's not
+
+"WiFi → pose" means three different things in this repo, at three different maturity
+levels. Read the label, not the headline ([ADR-187](adr/ADR-187-archive-v1-deprecation-honest-labeling.md)):
+
+| Tier | Checkpoint(s) | Honest status |
+|------|---------------|---------------|
+| **Real & validated** | [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained) (encoder + presence head) · [`ruvnet/wifi-densepose-mmfi-pose`](https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose) (17-keypoint pose) · `cog-person-count/count_v1` | **MEASURED / published.** Presence = 82.3% held-out temporal-triplet accuracy (the old "100% presence" figure was retracted); MM-Fi pose = 82.69% torso-PCK@20 on the `random_split` protocol. |
+| **Real but weak (honestly labeled)** | committed `v2/crates/cog-pose-estimation/cog/artifacts/pose_v1.safetensors` | First-cut on-device model. **PCK@20 = 3.0% / PCK@50 = 18.5%** on a 217-sample holdout — **below the ADR-079 target of ≥ 35%.** Learns coarse structure (`r_hip` 77% PCK@50); distal/face joints near-random. Its runtime path in `cog-pose-estimation/src/inference.rs` is still a centred-skeleton **stub returning `confidence=0`**. Full disclosure in the [cog README](../v2/crates/cog-pose-estimation/cog/README.md). Do not advertise the live single-ESP32 17-keypoint feature without this caveat. |
+| **Architecture only, no weights** | `archive/v1` `DensePoseHead` | Random `kaiming_normal_` init, **no checkpoint of any kind** (zero `.pth`/`.onnx`/`.safetensors` files under `archive/v1/`). Deprecated and superseded — see [`archive/v1/DEPRECATED.md`](../archive/v1/DEPRECATED.md). Do not expect real pose output from it. |
+
+**Does it actually run, and can a single ESP32 do pose? ([#509](https://github.com/ruvnet/RuView/issues/509), [#1125](https://github.com/ruvnet/RuView/issues/1125))** Yes, it runs, and the results are reproducible: the deterministic signal-pipeline proof (`python archive/v1/data/proof/verify.py`, must print `VERDICT: PASS`), the committed pose training dump (`v2/crates/cog-pose-estimation/cog/artifacts/train_results.json`), and the auditable MM-Fi arena all back specific numbers. But a single-antenna, 56-subcarrier CSI stream at a 20-frame window does *not* carry the fine-grained spatial information the multi-antenna NIC research relies on — so the shippable pose accuracy the project stands behind today is the **MM-Fi benchmark number**, not a live single-ESP32 number. The path to a first reproducible on-device baseline (PCK@20 ≥ 35%) is tracked in [ADR-079](adr/ADR-079-camera-ground-truth-training.md) / [#645](https://github.com/ruvnet/RuView/issues/645).
+
+### Model and capture compatibility
+
+These artifacts share a pose objective, but not an input contract or adapter format. A checkpoint
+is usable only when capture preprocessing, tensor shape, architecture, and runtime all match.
+
+| Artifact/path | Required input | Measured status | Live ESP32 compatibility |
+|---------------|----------------|-----------------|--------------------------|
+| MM-Fi flagship and `micro` transformer | `[N,3,114,10]` amplitude | **MEASURED** on MM-Fi `random_split`; calibration reference is Python `.npz` LoRA | No direct S3/C6 path is validated; resampling a 56-tone SISO stream does not recreate three-antenna MM-Fi input |
+| Cog `pose_v1.safetensors` | `[N,56,20]` amplitude | **MEASURED** PCK@20 = 3.0%, below the ≥35% target; cog-format LoRA is `.safetensors` | Shape matches the canonical window, but the documented live runtime remains below-target/stub and is not a reliable pose claim |
+| Viewer `heuristic_pose_from_amplitude` | live canonical amplitude | Skeleton-layout placeholder, not a trained pose model | Renders a demonstrator skeleton only; it is not pose accuracy evidence |
+| MERIDIAN automatic unlabeled calibration | proposed ~200-frame target-room capture | **PROPOSED** in ADR-027; no validated end-to-end command | Not available. The current calibration tools require paired CSI/keypoint labels and model-specific inputs |
+
+Calibration files are not interchangeable: `calibrate.py` targets the MM-Fi transformer, while
+`cog_calibrate.py` targets the cog conv+MLP. See the
+[calibration reference](../aether-arena/calibration/README.md) for their exact schemas.
 
 ### Download
 
@@ -1289,7 +1395,7 @@ Once trained, the adaptive model runs automatically:
 RuView integrates [OccWorld](https://github.com/wzzheng/OccWorld) (ECCV 2024) to predict
 future 3D occupancy from WiFi CSI — extending the Kalman tracker's 5-frame horizon to
 15 predicted frames (~7 s). See [ADR-147](adr/ADR-147-nvidia-cosmos-world-foundation-model-integration.md)
-and the [benchmark proof](adr/ADR-147-benchmark-proof.md) for full details.
+and the [benchmark proof](adr/ADR-168-benchmark-proof.md) for full details.
 
 **Hardware requirement:** NVIDIA GPU with ≥4 GB VRAM (validated: RTX 5080 at 209 ms / 3.4 GB).
 
@@ -1368,7 +1474,7 @@ The pipeline runs 10 phases:
 3. Subcarrier resampling (114->56 or 30->56 via Catmull-Rom interpolation)
 4. Graph transformer construction (17 COCO keypoints, 16 bone edges)
 5. Cross-attention training (CSI features -> body pose)
-6. **Domain-adversarial training** (MERIDIAN: gradient reversal + virtual domain augmentation)
+6. Experimental domain-adversarial components (MERIDIAN research modules; not a validated automatic deployment path)
 7. Composite loss optimization (MSE + CE + UV + temporal + bone + symmetry)
 8. SONA adaptation (micro-LoRA + EWC++)
 9. Sparse inference optimization (hot/cold neuron partitioning)
@@ -1384,14 +1490,18 @@ Progressive loading enables instant startup (Layer A loads in <5ms with basic in
 
 ### Cross-Environment Adaptation (MERIDIAN)
 
-Models trained in one room typically lose 40-70% accuracy in a new room due to different WiFi multipath patterns. The MERIDIAN system (ADR-027) solves this with a 10-second automatic calibration:
+Models trained in one room can lose substantial accuracy in a new room because the multipath
+distribution changes. ADR-027 proposes an automatic adaptation design, and the Rust tree contains
+individual research components, but RuView does **not** currently provide a validated command that
+turns ~200 unlabeled frames into a working room adapter.
 
-1. **Deploy** the trained model in a new room
-2. **Collect** ~200 unlabeled CSI frames (10 seconds at 20 Hz)
-3. The system automatically generates environment-specific LoRA weights via contrastive test-time training
-4. No labels, no retraining, no user intervention
+Current, testable calibration is the separate **labeled** reference in
+`aether-arena/calibration/`: collect paired CSI/keypoint samples, then fit a model-specific LoRA
+adapter. The MM-Fi transformer expects `[N,3,114,10]`; the cog expects `[N,56,20]`. Neither adapter
+loads into the other model, and neither result establishes live ESP32 pose accuracy without a
+leakage-free held-out capture and mean-pose baseline.
 
-MERIDIAN components (all pure Rust, +12K parameters):
+ADR-027 research components:
 
 | Component | What it does |
 |-----------|-------------|
@@ -1399,7 +1509,7 @@ MERIDIAN components (all pure Rust, +12K parameters):
 | Domain Factorizer | Separates pose-relevant from room-specific features |
 | Geometry Encoder | Encodes AP positions (FiLM conditioning with DeepSets) |
 | Virtual Augmentor | Generates synthetic environments for robust training |
-| Rapid Adaptation | 10-second unsupervised calibration via contrastive TTT |
+| Rapid Adaptation | Proposed unlabeled contrastive TTT; not wired as a validated deployment workflow |
 
 See [ADR-027](adr/ADR-027-cross-environment-domain-generalization.md) for the full design.
 
@@ -1456,13 +1566,108 @@ An RVF file contains: model weights, HNSW vector index, quantization codebooks, 
 
 ---
 
+## Perception Certificate Spine (Developer Preview, ADR-300)
+
+RuView's perception substrate program (ADR-300) is building a `signal → observation →
+calibration → inference → uncertainty → evidence → certificate → policy → governed
+action` pipeline, where a downstream consumer either gets a calibrated, provenance-backed
+answer or an explicit `UNKNOWN` — never a confident-looking guess outside the sensor's
+proven operating envelope.
+
+**Status: developer preview, now wired at the crate level.** Phase 1 shipped nine new
+crates. `ruview-certify` and `ruview-policy` now depend on `ruview-ood` and provide a
+real adapter (`impl From<ruview_ood::DomainState> for _`) plus a composed entry point,
+`ruview_policy::authorize_from_certificate`, that takes a real signed
+`CapabilityCertificate` and a real `ruview_ood::DomainState` and drives them through
+`authorize()` — not a hand-built `AssuranceInputs`. A cross-crate integration test
+(`ruview-policy`'s `acceptance_test_b_real_integration` module) mints an actual signed
+certificate and proves a real post-drift `Unknown` denies a `SafetyCritical` action
+through that one composed pipeline.
+
+**What's still not done:** none of this runs automatically inside the live
+`sensing-server` request path yet — there is no continuous calibration/OOD-monitoring
+loop wired into the running server that calls this pipeline on live sensor data. Treat
+`authorize_from_certificate` as a real, tested library entry point you can call from your
+own integration today, not something the server invokes for you on every request yet.
+That remaining step is a genuinely separate, larger effort (deciding polling cadence,
+where calibration state lives, what triggers re-certification) — see ADR-300 for the
+phased plan.
+
+### The crates
+
+| Crate | Role |
+|---|---|
+| `ruview-ontology` | Canonical `Site → … → Event` types |
+| `ruview-attest` | Signed measurement / RF chain-of-custody |
+| `ruview-evidence` | Append-only per-context ledger (no pooling, no evidence upgrade) |
+| `wifi-densepose-calibration` | Signed, drift-invalidatable calibration certificate |
+| `ruview-ood` | `Known` / `Degraded` / `Unknown` staleness-guard domain gating |
+| `ruview-witness` | Hash-linked staged provenance chain |
+| `ruview-certify` | Capability certificate, conditional on a live domain signature |
+| `ruview-scorecard` | Multi-domain scorecard, worst-domain promotion gate |
+| `ruview-policy` | Fail-closed action authorization gate |
+
+### Minting and checking a certificate
+
+```rust
+use ruview_certify::{mint, CapabilityCertificate, DomainState};
+
+// `signer`, `request`, and `evidence_slice` come from your own calibration run —
+// see each crate's README for how to build them.
+let cert = mint(&signer, request, &evidence_slice)?;
+
+// A certificate is only valid at a given instant AND domain state — the same
+// signed certificate is rejected the moment the live domain degrades:
+assert!(cert.is_valid(now_ms, DomainState::Known));
+assert!(!cert.is_valid(now_ms, DomainState::Degraded));
+assert!(!cert.is_valid(now_ms, DomainState::Unknown));
+```
+
+### Gating an action from a real certificate + a real OOD reading
+
+```rust
+use ruview_policy::authorize_from_certificate;
+
+// `cert` (ruview_certify::CapabilityCertificate) and `domain`
+// (ruview_ood::DomainState) come from your own certify/OOD calls.
+let decision = authorize_from_certificate(
+    ActionClass::SafetyCritical,
+    &cert, &verifier, now_unix_s, domain,
+    certificate_class, uncertainty, evidence_level,
+);
+// Deny with a named FailedCondition (e.g. DomainNotKnown) — not a silent
+// false-positive — the moment `domain` degrades, even though `cert` itself
+// is still validly signed and unexpired.
+```
+
+`ruview_certify::DomainState` and `ruview_policy::DomainState` are still each their own
+type (`ruview-ood`'s `Degraded`/`Unknown` additionally carry a `DomainCause`), but the
+conversion between them is no longer something you have to write yourself —
+`authorize_from_certificate` does it via the crates' own `From<ruview_ood::DomainState>`
+impls.
+
+### What's genuinely enforced today, for comparison
+
+Not every ADR-295–296 remediation item is preview-only. Three are live now:
+
+- **UDP data-plane bind hardening (ADR-296)** — `sensing-server`'s `UdpSourceAllowlist`
+  is checked on every incoming packet (`main.rs`), not just defined.
+- **CSI data-incident repo controls (ADR-299)** — `scripts/csi-data-policy-check.sh`
+  runs in CI on every push/PR and fails the build on a policy violation.
+- **Synthetic-export watermarking (ADR-295)** — `start_recording` stamps a `SYNTHETIC`
+  watermark on a recording's metadata (`GET /api/v1/recordings`, the start-recording
+  response) whenever it captures while the live source is synthetic — an operator
+  browsing or scripting against recordings can't mistake generated data for a capture.
+
+---
+
 ## Hardware Setup
 
 ### Supported targets
 
 | Target | Use case | Source target flag | Notes |
 |---|---|---|---|
-| **ESP32-S3** (default) | Production CSI mesh, 17-keypoint pose | `idf.py set-target esp32s3` | Dual-core 240 MHz, PSRAM, native USB-OTG, DVP camera path |
+| **ESP32-S3** (default) | Production CSI capture mesh; presence/motion/vital heuristics | `idf.py set-target esp32s3` | Dual-core 240 MHz, PSRAM, native USB-OTG, DVP camera path; live 17-keypoint pose is not validated |
 | **ESP32-C6** ([ADR-110](adr/ADR-110-esp32-c6-firmware-extension.md)) | Wi-Fi 6 / 802.15.4 research, battery seed nodes | `idf.py set-target esp32c6` | Single-core 160 MHz, no PSRAM, 802.11ax HE PHY, 802.15.4 (Thread/Zigbee), LP-core hibernation ~5 µA |
 
 The same `firmware/esp32-csi-node` source tree builds for both. ESP-IDF picks up `sdkconfig.defaults.esp32c6` automatically when the target is set to `esp32c6`; otherwise it uses `sdkconfig.defaults` (S3). All C6-only modules are `#ifdef`-gated, so the S3 build is byte-identical to today.
@@ -1747,7 +1952,14 @@ See [ADR-071](adr/ADR-071-ruvllm-training-pipeline.md) and the [pretraining tuto
 
 For significantly higher accuracy, use a webcam as a **temporary teacher** during training. The camera captures real 17-keypoint poses via MediaPipe, paired with simultaneous ESP32 CSI data. After training, the camera is no longer needed — the model runs on CSI only.
 
-**Result: 92.9% PCK@20** from a 5-minute collection session.
+> **Accuracy note (2026-06-10):** the previously cited "92.9% PCK@20" figure is
+> retracted — a forensic recheck of the surviving eval holdout showed it came
+> from a constant-output model scored with an absolute (non-torso-normalized)
+> threshold on 69 nearly-static frames, a protocol under which a trivial
+> mean-pose predictor scores 100%. No measured camera-supervised PCK@20 is
+> currently published (see CHANGELOG, PR #535). Treat this workflow as a data
+> collection mechanism; accuracy claims will follow a ≥35-minute multi-pose
+> collection session evaluated with torso-normalized PCK.
 
 ### Requirements
 
@@ -1755,50 +1967,120 @@ For significantly higher accuracy, use a webcam as a **temporary teacher** durin
 - ESP32-S3 node streaming CSI over UDP (port 5005)
 - A webcam (laptop, USB, or Mac camera via Tailscale)
 
-### Step 1: Capture Camera + CSI Simultaneously
+### Step 0: Check your CSI rate and plan the session length
+
+Window yield is `csi_frames / 20` — **your CSI packet rate sets how long you
+must record.** Check it first (10-second probe):
+
+```bash
+python - <<'EOF'
+import socket, time
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind(('0.0.0.0', 5005)); s.settimeout(2)
+n, t0 = 0, time.time()
+while time.time() - t0 < 10:
+    try: s.recvfrom(4096); n += 1
+    except socket.timeout: pass
+print(f"{n/10:.1f} Hz -> {n/10*60/20:.0f} windows/min")
+EOF
+```
+
+| CSI rate | Windows/min | Minutes for 2,000 windows (minimum trainable) |
+|---|---|---|
+| ~13 Hz (idle network) | ~39 | ~52 min |
+| ~53 Hz (active self-ping, #985 firmware) | ~160 | ~13 min — record 35–40 min anyway for pose variety |
+
+A 5-minute session is **not enough to train on** — it produces a few hundred
+windows of one pose context, and models trained on it memorize rather than
+generalize (this is what invalidated the earlier accuracy figure).
+
+### Step 1: (Recommended) calibrate camera ↔ room
+
+The two-checkerboard calibration (ADR-152 §2.1.3) puts labels in a shared 3D
+room frame instead of raw camera coordinates, which is the published defense
+against layout-brittle "coordinate overfitting" (PerceptAlign, MobiCom'26):
+
+```bash
+python scripts/calibrate-camera-room.py   # < 5 min, two checkerboards + a few photos
+```
+
+Without it, collection still works but labels are camera-frame only and the
+trained model will not survive camera/node relocation.
+
+### Step 2: Capture Camera + CSI Simultaneously
 
 Run both scripts at the same time (in separate terminals):
 
 ```bash
-# Terminal 1: Record ESP32 CSI
-python scripts/record-csi-udp.py --duration 300
+# Terminal 1: Record ESP32 CSI (2400 s = 40 min)
+python scripts/record-csi-udp.py --duration 2400
 
 # Terminal 2: Capture camera keypoints
-python scripts/collect-ground-truth.py --duration 300 --preview
+python scripts/collect-ground-truth.py --duration 2400 --preview \
+  --calibration data/calibration/camera-room.json   # omit if you skipped Step 1
 ```
 
-Move around naturally in front of the camera for 5 minutes. The `--preview` flag shows a live skeleton overlay.
+During capture: keep your **full body in frame** with good lighting (MediaPipe
+confidence must stay above 0.5 — low-confidence frames are dropped at
+alignment), and **change activity every 1–2 minutes**: walk, raise hands,
+squat, hands up, kick, wave, turn, jump, sit, stand still. Pose variety is
+what the model learns from; 40 minutes of sitting produces a constant-pose
+predictor.
 
-### Step 2: Align and Train
+### Step 3: Align and Train
 
 ```bash
-# Align camera keypoints with CSI windows
+# Align camera keypoints with CSI windows (prints kept/dropped window counts —
+# expect roughly csi_frames/20 kept; investigate if far below)
 node scripts/align-ground-truth.js \
   --gt data/ground-truth/*.jsonl \
   --csi data/recordings/csi-*.csi.jsonl
 
-# Train (start with lite, scale up as you collect more data)
+# Train (pick the preset matching your window count)
 node scripts/train-wiflow-supervised.js \
   --data data/paired/*.jsonl \
-  --scale lite \
+  --scale small \
   --epochs 50
 
-# Evaluate
+# Evaluate — torso-normalized PCK on a TEMPORAL split
 node scripts/eval-wiflow.js \
   --model models/wiflow-supervised/wiflow-v1.json \
   --data data/paired/*.jsonl
 ```
 
+> **Model format boundary:** `train-wiflow-supervised.js` produces the
+> JavaScript WiFlow model `wiflow-v1.json`. There is currently no supported
+> command that converts that JSON model into the sensing server's binary RVF
+> container, and renaming the file to `.rvf` does not convert it. Use the JSON
+> model with the JavaScript evaluation/inference tools. To train a model that
+> the Rust sensing server can load, use its native training path, which writes
+> RVF directly:
+>
+> ```bash
+> cargo run -p wifi-densepose-sensing-server --release -- \
+>   --train --dataset data/mmfi --dataset-type mmfi \
+>   --epochs 100 --save-rvf models/room-model.rvf
+> ```
+>
+> The camera+CSI paired JSONL workflow and the native RVF trainer are separate
+> pipelines today. A JSON-to-RVF exporter is future work.
+
+**Evaluation protocol matters.** Use `eval-wiflow.js` (torso-normalized
+PCK@20, the metric comparable to published WiFi-pose results) on a temporal
+hold-out, and sanity-check that predictions actually vary across frames
+(`pred std > 0`) — a constant-pose model can score deceptively well on
+near-static data under weaker protocols. See
+`benchmarks/wiflow-std/RESULTS.md` for the forensic case study.
+
 ### Scale Presets
 
 | Preset | Params | Training Time | Best For |
 |--------|--------|---------------|----------|
-| `--scale lite` | 189K | ~19 min | < 1,000 samples (5 min capture) |
-| `--scale small` | 474K | ~1 hr | 1K-10K samples |
-| `--scale medium` | 800K | ~2 hrs | 10K-50K samples |
-| `--scale full` | 7.7M | ~8 hrs | 50K+ samples (GPU recommended) |
+| `--scale lite` | 189K | ~19 min | sanity runs only (< 2K windows trains poorly) |
+| `--scale small` | 474K | ~1 hr | 2K-10K windows (one 40-min session) |
+| `--scale medium` | 800K | ~2 hrs | 10K-50K windows (multiple sessions/rooms) |
+| `--scale full` | 7.7M | ~8 hrs | 50K+ windows (GPU recommended) |
 
-See [ADR-079](adr/ADR-079-camera-ground-truth-training.md) for the full design and optimization details.
+See [ADR-079](adr/ADR-079-camera-ground-truth-training.md) for the full design and optimization details, and ADR-152 §2.2 for the external WiFlow-STD benchmark these numbers should be read against.
 
 ---
 
@@ -1809,7 +2091,11 @@ Pre-trained models are available on HuggingFace:
 - **SOTA MM-Fi pose model** (82.69% torso-PCK@20) — https://huggingface.co/ruvnet/wifi-densepose-mmfi-pose
 - **AetherArena leaderboard Space** — https://huggingface.co/spaces/ruvnet/aether-arena
 
-Download and start sensing immediately — no datasets, no GPU, no training needed. Results are reproducible via `python archive/v1/data/proof/verify.py` (deterministic SHA-256 proof) — see [ADR-147](adr/ADR-147-benchmark-proof.md).
+The encoder artifact can be downloaded for its documented inference path without retraining. The
+MM-Fi pose checkpoint is benchmark evidence, not a drop-in live ESP32 model; it requires its exact
+input contract and runtime described in [Model and capture compatibility](#model-and-capture-compatibility).
+The deterministic signal-pipeline proof is reproducible via `python archive/v1/data/proof/verify.py`
+(see [ADR-168](adr/ADR-168-benchmark-proof.md)), but that proof does not validate pose accuracy.
 
 ### Quick Start with Pre-Trained Models
 
@@ -2374,7 +2660,12 @@ No. Run `docker run -p 3000:3000 ruvnet/wifi-densepose:latest` and open `http://
 No. Consumer WiFi exposes only RSSI (one number per access point), not CSI (56+ complex subcarrier values per frame). RSSI supports coarse presence and motion detection. Full pose estimation requires CSI-capable hardware like an ESP32-S3 ($8) or a research NIC.
 
 **Q: How accurate is the pose estimation?**
-Accuracy depends on hardware and environment. With a 3-node ESP32 mesh in a single room, the system tracks 17 COCO keypoints. The core algorithm follows the CMU "DensePose From WiFi" paper ([arXiv:2301.00250](https://arxiv.org/abs/2301.00250)). The MERIDIAN domain generalization system (ADR-027) reduces cross-environment accuracy loss from 40-70% to under 15% via 10-second automatic calibration.
+The strongest published RuView result is the MM-Fi transformer benchmark (82.69% torso-PCK@20 on
+the matched `random_split` protocol), not a live ESP32 result. The committed cog model measured
+3.0% PCK@20 on its holdout, below the ≥35% target, and the viewer's live skeleton is a heuristic
+placeholder. No measured claim currently shows a 3-node ESP32 mesh reliably tracking 17 keypoints.
+ADR-027's 10-second unlabeled MERIDIAN adaptation is Proposed; the available measured calibration
+reference uses labeled, model-specific samples.
 
 **Q: Does it work through walls?**
 Yes. WiFi signals penetrate non-metallic materials (drywall, wood, concrete up to ~30cm). Metal walls/doors significantly attenuate the signal. With a single AP the effective through-wall range is approximately 5 meters. With a 3-6 node multistatic mesh (ADR-029), attention-weighted cross-viewpoint fusion extends the effective range to ~8 meters through standard residential walls.

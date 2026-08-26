@@ -1,218 +1,128 @@
-# Feberdin Dependency and Repository Hardening
+# Feberdin Fork Synchronization and Security Baseline
 
 ## Purpose
 
-This record explains the August 2026 security baseline for the
-`Feberdin/RuView` fork, the risks that were found, the remediation decisions,
-and the checks required to prevent recurrence. It records package names and
-advisory classes but never credential values.
+This record explains how `Feberdin/RuView` was synchronized with current
+upstream on 26 August 2026, which findings were remediated, which narrowly
+reviewed maintenance boundaries remain, and how recurrence is blocked. It
+contains identifiers and package names, never credential values.
 
-## Baseline findings
+## Synchronization evidence
 
-The initial GitHub review reported 135 open Dependabot alerts: 61 high, 56
-moderate, and 18 low. GitHub code scanning also reported 115 open findings from
-KICS and Semgrep. Native GitHub secret scanning and push protection were already
-enabled and reported no open secret-scanning alert. Local current-tree scanning
-identified upstream example/test strings that matched generic secret patterns;
-no active credential was established from those matches. The partial clone
-could not complete an independent local history scan, so GitHub's native
-full-history result and the full-history CI checkout remain the historical
-controls.
+The previous Feberdin tip was
+`bb0a05f3dbb38b051a351856e9e58a3d31354e6f`. Freshly fetched upstream was
+`d42c5581f34fe8e50b053971d387fb8c56a3baf4` (`ruvnet/RuView` v2390). The fork
+had 32 Feberdin-only and 370 upstream-only commits. The corrected branch starts
+from that exact upstream commit, reapplies the security overlay, and then joins
+both histories with a normal merge commit. No force-push or fork detachment is
+required.
 
-The dependency findings were distributed across six npm lockfiles, two Rust
-lockfiles, root Python requirements, and the Aether Arena Space. The important
-root causes were:
+Before release, both commands must succeed:
 
-- old Expo/React Native tooling pulled multiple vulnerable build-time packages;
-- independently maintained npm packages were absent from Dependabot coverage;
-- `python-jose` required the vulnerable and unpatched `ecdsa` package;
-- the published `midstreamer-temporal-compare` crate pinned an old `lru` release;
-- old PyO3 and Tauri/Rust dependency graphs retained advisories and unmaintained
-  packages;
-- tracked Vite cache output obscured source review and preserved generated
-  dependencies in Git;
-- secret scanner failures were permitted by `continue-on-error`.
-- mutable GitHub Action tags and permissive IaC defaults produced supply-chain
-  and container/Kubernetes findings;
-- archived SQL construction and a UDP discovery bind produced Semgrep findings.
+```bash
+git merge-base --is-ancestor upstream/main HEAD
+git merge-base --is-ancestor codex/pre-upstream-sync-20260826 HEAD
+```
 
-## Remediation decisions
+## Findings and remediation
 
-### JavaScript and mobile
+### JavaScript
 
-All maintained npm lockfiles were regenerated against compatible patched
-versions and must now return zero findings at `--audit-level=low`. The mobile app
-was aligned to Expo 55 and React Native 0.83 instead of hiding peer conflicts
-behind `--legacy-peer-deps`. React and React DOM remain on their reviewed patched
-19.2 release and are explicitly excluded only from Expo's compatibility pin,
-not from vulnerability auditing.
+The nine tracked npm lockfiles initially contained 65 audit findings: 3
+critical, 37 high, 21 moderate, and 4 low. Compatible direct dependencies,
+framework releases, and reviewed transitive overrides were updated. Each
+package now installs from its committed lockfile with lifecycle scripts disabled
+and returns zero findings at `--audit-level=low`. Mobile tests were adapted to
+the supported Expo 55 / React Native 0.83 test environment without weakening
+assertions.
 
-The mobile verifier checks both the selected versions and representative APIs
-used by their real consumers. This guards reviewed transitive resolutions such
-as YAML parsing, shell quoting, UUID generation, and XML parsing against a future
-lockfile regression. It also executes npm's complete advisory check.
+### Python
 
-The tracked desktop `.vite` cache was removed and `**/.vite/` is ignored. Build
-output must be recreated locally or in CI, never reviewed as source.
+The Aether Arena requirement set initially reported 47 known vulnerabilities,
+primarily through the old Gradio, Pillow, and Starlette graph. Gradio was moved
+from 5.9.1 to 6.26.0 and the application import plus its chain-verification
+smoke path were exercised on Python 3.12. Both tracked Python requirement sets
+now return zero findings with `pip-audit==2.10.0 --strict`.
 
-The mobile documentation previously advertised seven Maestro end-to-end flows
-whose tracked YAML files were empty. The flows now contain isolated launch and
-screen assertions, the workspace configuration stops on failure, and unused
-zero-byte component, hook, and image placeholders were removed. The README no
-longer recommends piping a remote installer directly into a shell.
+### Rust
 
-### Code scanning and infrastructure
+All six first-party Cargo lockfiles are scanned. The initial state included
+known vulnerabilities in the Python binding, Wasm edge, and standalone RuVector
+compatibility graphs, plus unsound `lru`, `rand`, `anyhow`, and GLib paths.
+Lockfiles and compatible dependencies were updated. The Python binding uses
+PyO3 0.29, and both the main workspace and standalone binding use the reviewed
+`midstreamer-temporal-compare` overlay selecting `lru` 0.18.2.
 
-Every third-party GitHub Action is pinned to an immutable commit SHA. KICS is a
-blocking CI gate at every actionable severity. Compose services now drop Linux
-capabilities, prohibit privilege escalation, have health checks and resource
-limits, and bind host ports to an explicit safe address. The Fluentd workload
-runs as an unprivileged user with a read-only root filesystem, short-lived
-service-account credentials, namespace quota/limits, and only the two standard
-read-only Kubernetes pod-log mounts.
+Tauri's supported GTK3 stack still requires GLib 0.18.5. The exact crates.io
+source is vendored with the upstream `VariantStrIter` undefined-behaviour fix;
+license, source provenance, delta, and removal criteria are in
+`v2/vendor/glib-0.18.5/FEBERDIN-PATCH.md`.
 
-KICS necessarily flags both standard pod-log host mounts under two generic host
-filesystem rules. Those four exact findings are excluded by stable result ID in
-the workflow; no path-wide or query-wide suppression is used. The prior broad
-Docker and `/var/log` mounts were removed. The informational KICS namespace
-query is excluded because it reports every deliberate namespace and has no
-satisfiable manifest state.
+The gate rejects vulnerabilities, unsoundness, and every unexpected RustSec
+warning. It accepts only these maintenance-only groups:
 
-Semgrep findings were fixed by using SQLAlchemy expression objects or reviewed
-driver-level DDL for fixed identifiers. ESP32 UDP discovery remains receive-only
-and defaults to all local interfaces so broadcast discovery works; operators can
-restrict it with `RUVIEW_ESP32_DISCOVERY_BIND_ADDRESS`.
+| Dependency path | Advisory IDs | Removal condition |
+| --- | --- | --- |
+| Tauri/Wry → GTK3 | RUSTSEC-2024-0370 and RUSTSEC-2024-0411 through -0420 | Move when Tauri supports a maintained Linux GUI stack and desktop builds pass on all targets. |
+| Tauri → `urlpattern` → UNIC | RUSTSEC-2025-0075, -0080, -0081, -0098, -0100 | Remove when the supported parser graph no longer uses UNIC 0.9. |
+| Geometry → `atomic-polyfill` | RUSTSEC-2023-0089 | Upgrade the compatible geo/rstar graph under focused geometry tests. |
+| Numerical/RuVector graphs | RUSTSEC-2024-0436, RUSTSEC-2025-0057, RUSTSEC-2025-0141, RUSTSEC-2026-0173 | Remove each ID when its transitive upstream replaces the unmaintained crate and compatibility tests pass. |
+| CLI progress graph | RUSTSEC-2025-0119 | Remove after an `indicatif` upgrade and progress-output verification. |
 
-### Python and native bindings
+`spin` 0.9.8 is pinned by the maintained `flume` 0.11 and 0.12 graphs and has
+been yanked without a RustSec vulnerability or a selectable replacement in the
+accepted 0.9 range. Yank status is therefore not treated as a vulnerability in
+the RustSec command; this exact boundary must be removed when `flume` selects a
+non-yanked release. Dependabot and all RustSec advisory classes remain active.
 
-Authentication now uses `PyJWT[crypto]`, eliminating `python-jose` and its
-mandatory unpatched `ecdsa` dependency. The archived API imports use PyJWT's
-compatible error class and the existing encode/decode call sites remain covered
-by Python tests.
+Tracked `audit.toml` files are forbidden. This prevents a nested package from
+silently hiding a vulnerability outside the centrally reviewed script.
 
-The native binding moved to PyO3 and `numpy` 0.29. This required explicit bound
-object construction and conversion APIs, and uses the current mechanism for
-temporarily detaching from the Python interpreter. The package is verified by
-building the real extension with Maturin and importing it in Python; a plain
-macOS `cargo test` is not an equivalent extension-module link test.
+### Secrets
 
-The Aether Arena Space moved to a current Gradio release and was smoke-tested by
-importing the app, verifying its witness chain, and constructing the Blocks UI.
+The fresh upstream worktree produced 13 source findings. All were synthetic
+documentation or test values: API examples, WebSocket handshake fixtures, and
+JWT-shaped negative-test data. No active credential was established. They were
+replaced by environment-variable instructions or runtime-built fixtures, and
+the current-tree scan returns zero findings.
 
-### Rust workspace
-
-The workspace moved to Rust 1.94 and current compatible releases of the affected
-runtime dependencies. Unused SQLx MySQL/RSA and MAVLink dependency paths were
-removed rather than suppressed. Wasmtime uses the smallest feature set required
-by the implemented plugin runtime.
-
-The crates.io release of `midstreamer-temporal-compare` could not select a fixed
-`lru` version. A narrow vendored copy from its reviewed upstream source is
-therefore patched at the workspace root, preserves upstream licenses and tests,
-and changes only the vulnerable dependency selection. Its unit and property
-tests are part of the verification record. The exception must be removed when a
-compatible fixed upstream release becomes available.
-
-`rumqttc` 0.25.1 still pins the unsupported `rustls-webpki` 0.102 line. The MQTT
-features now select rumqttc's supported native TLS backend instead: OpenSSL on
-Linux, Security Framework on macOS, and SChannel on Windows. The system trust
-store remains enforced, while the four WebPKI advisories and their vulnerable
-lockfile entry are removed.
-
-Tauri's Linux GTK3 dependency still requires `glib` 0.18.5, so forcing 0.20
-would mix incompatible GTK binding generations. The workspace uses the exact
-crates.io 0.18.5 source with upstream pull request `gtk-rs/gtk-rs-core#1343`'s
-two-line `VariantStrIter` undefined-behaviour fix backported. Its archive hash,
-license, commit, exact delta, verification, and removal condition are recorded
-in `v2/vendor/glib-0.18.5/FEBERDIN-PATCH.md`.
-
-Three workspace dependency entries referred to crates removed in upstream issue
-578. Cargo tolerated the unused entries, but Dependabot could not fetch the
-nonexistent paths and aborted security updates. Those dead entries are removed;
-the existing workspace comments continue to document where their planned
-functionality lives.
-
-### Reviewed Rust maintenance exceptions
-
-RustSec distinguishes known vulnerabilities from informational maintenance
-warnings. The security gate still rejects every vulnerability and every
-unexpected warning. It accepts only the exact `unmaintained` advisory IDs in
-`.github/scripts/cargo-audit.sh`; none of them currently reports exploitable
-code. The exceptions are grouped by their shortest reviewed dependency path:
-
-| Dependency path | Accepted maintenance IDs | Why it remains | Removal condition |
-| --- | --- | --- | --- |
-| Tauri 2.11 / Wry -> Linux GTK3 | RUSTSEC-2024-0411 through RUSTSEC-2024-0420, plus RUSTSEC-2024-0370 | Tauri's supported Linux webview stack still selects the GTK3 binding generation. Mixing GTK binding generations is not ABI-safe. The concrete GLib undefined behaviour is separately fixed by the reviewed local patch. | Remove when Tauri/Wry ships a compatible maintained Linux GUI stack, then test desktop builds on Linux, macOS, and Windows. |
-| Tauri -> `urlpattern` -> UNIC 0.9 | RUSTSEC-2025-0075, -0080, -0081, -0098, -0100 | Current Tauri utilities resolve this parser chain; the advisories report maintenance status, not a vulnerability. | Remove when Tauri or `urlpattern` drops UNIC 0.9, then regenerate and audit the lockfile. |
-| `geo` -> `rstar` -> `heapless` -> `atomic-polyfill` | RUSTSEC-2023-0089 | The MAT geometry implementation still uses the compatible geo 0.27 API. | Upgrade geo/rstar under focused geometry tests and remove the ID once `atomic-polyfill` leaves the lockfile. |
-| RuVector -> `hnsw_rs` -> `bincode` 1/2 | RUSTSEC-2025-0141 | The maintained RuVector integration currently resolves both serialization generations; the advisory is maintenance-only. | Upgrade RuVector/hnsw when their public releases remove bincode, then rerun vector persistence compatibility tests. |
-| Candle/nalgebra -> `paste` | RUSTSEC-2024-0436 | Current supported numerical crates still resolve the macro; no vulnerable behavior is reported. | Remove after upstream numerical releases eliminate `paste` and model tests remain green. |
-| CLI/training -> `indicatif` -> `number_prefix` | RUSTSEC-2025-0119 | The current progress display API remains compatible and the advisory is maintenance-only. | Upgrade indicatif in a dedicated UX change and verify CLI snapshots/progress behavior. |
-
-Adding an ID requires a reviewed dependency path, a non-vulnerability advisory,
-a removal condition, and a pull request changing both this table and the audit
-script. A vulnerability ID must never be added to the exception list.
-
-The former `v2/.cargo/audit.toml` was removed because it still ignored obsolete
-vulnerability and unsoundness advisories. The packages had already left the
-lockfile, but retaining those IDs could have hidden a later regression. The
-audit script now fails if another local cargo-audit configuration is added.
+Submodule contents are independently versioned repositories. A recursive local
+checkout is excluded only at the exact root gitlink paths; source, docs,
+examples, and tests owned by RuView are never allowlisted. The generic CI gate
+scans the exact revision; GitHub's provider-aware native secret scanning remains
+the full-history control. A future provider-verified credential match must be
+treated as compromised and rotated before any history decision.
 
 ## Preventive controls
 
-- One root `.github/dependabot.yml` covers every maintained package directory;
-  individual repositories need their own file, but packages inside this
-  monorepo need directory entries rather than duplicate files.
-- `.github/workflows/dependency-security.yml` blocks every npm advisory,
-  Python advisory, RustSec vulnerability or warning, and Gitleaks finding.
-- `.github/workflows/security-scan.yml` blocks KICS and Gitleaks findings and
-  uploads the reviewed Semgrep result to GitHub code scanning.
-- The existing secret-scanning job no longer soft-fails and its external actions
-  are pinned to immutable commits.
-- GitHub native secret scanning, push protection, Dependabot alerts, and security
-  updates remain enabled.
-- `SECURITY.md` defines private reporting, credential rotation, dependency
-  exceptions, and privacy handling.
-- `CONTRIBUTING.md` makes exact local and post-push CI verification repeatable.
+- `.github/dependabot.yml` covers GitHub Actions, all 9 npm directories, all 6
+  first-party Cargo lockfiles, all Python projects, and both Dockerfile paths.
+- `.github/workflows/dependency-security.yml` blocks npm, Python, RustSec, and
+  secret findings on pull requests, `main`, and a weekly schedule.
+- `.gitleaks.toml` extends maintained defaults and excludes only generated
+  output plus exact root submodule working trees.
+- `SECURITY.md` defines private reporting, rotation, scanning, privacy, and
+  dependency-exception rules.
+- `CONTRIBUTING.md` defines safe upstream synchronization and exact-commit CI
+  verification.
+- GitHub native secret scanning, push protection, Dependabot alerts, security
+  updates, and private vulnerability reporting must remain enabled.
 
-## Operator verification
+## Verification
 
-From the repository root:
-
-```bash
-for package in \
-  dashboard examples/frontend tools/ruview-cli tools/ruview-mcp ui/mobile \
-  v2/crates/wifi-densepose-desktop/ui
-do
-  (cd "$package" && npm ci --ignore-scripts && npm audit --audit-level=low)
-done
-
-pip-audit --strict --requirement requirements.txt
-pip-audit --strict --requirement aether-arena/space/requirements.txt
-(cd python && ../.github/scripts/cargo-audit.sh)
-(cd v2 && ../.github/scripts/cargo-audit.sh)
-gitleaks git --redact --no-banner
-gitleaks dir --redact --no-banner .
-```
-
-`gitleaks git` requires all promised objects. In a partial clone, first fetch a
-complete history in a disposable review clone or rely on the CI job's
-`fetch-depth: 0` checkout; do not weaken the current-tree scan.
-
-If a check fails, do not lower its threshold. Record the dependency path, update
-the smallest direct dependency or reviewed override, run its focused tests, and
-then repeat all relevant package checks.
+Use the exact commands in `SECURITY.md`. For a changed component, also run its
+focused tests, full tests, formatter, linter, type checker, and build as exposed
+by that component's manifests. After every push, wait for GitHub Actions on the
+exact commit and correct the first real failure before continuing.
 
 ## Residual boundaries
 
-- A clean advisory database cannot prove that undisclosed vulnerabilities do not
-  exist. Scheduled scans and timely review of Dependabot pull requests remain
-  required.
-- Pattern-based secret scanning can produce both false positives and false
-  negatives. Provider-side revocation, least privilege, short expiry, and audit
-  logs remain essential.
-- The fork intentionally diverges from upstream. Every upstream merge can
-  reintroduce an old lockfile or workflow and therefore requires the full gate.
-- Radio-derived health and occupancy data can be sensitive even when no camera is
-  used. Deployment-specific consent, access control, retention, and regulatory
-  review remain operator responsibilities.
+- Advisory databases cannot detect undisclosed vulnerabilities; scheduled
+  scans and prompt Dependabot review remain required.
+- Pattern scanners can miss provider-specific formats. Short-lived,
+  least-privilege credentials and provider audit logs remain essential.
+- Each upstream synchronization can reintroduce old manifests, fixtures, or
+  workflow behavior and therefore requires the complete gate.
+- Radio-derived occupancy and health observations may be sensitive even without
+  cameras. Consent, retention, access control, and regulatory review are
+  deployment responsibilities.
