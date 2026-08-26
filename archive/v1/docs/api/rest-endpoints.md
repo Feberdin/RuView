@@ -21,7 +21,7 @@ The WiFi-DensePose REST API provides comprehensive access to pose estimation dat
 
 ### Base URL
 
-```
+```text
 Production: https://api.wifi-densepose.com/api/v1
 Staging: https://staging-api.wifi-densepose.com/api/v1
 Development: http://localhost:8000/api/v1
@@ -76,12 +76,13 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "<provided at runtime; never store in Git>",
   "token_type": "bearer",
   "expires_in": 86400,
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "refresh_token": "<provided at runtime; never store in Git>"
 }
 ```
 
@@ -176,11 +177,13 @@ Authorization: Bearer <token>
 ```
 
 **Query Parameters:**
+
 - `environment_id` (optional): Filter by environment ID
 - `min_confidence` (optional): Minimum confidence threshold (0.0-1.0)
 - `include_keypoints` (optional): Include detailed keypoint data (default: true)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -242,6 +245,7 @@ Authorization: Bearer <token>
 ```
 
 **Query Parameters:**
+
 - `start_time` (required): Start timestamp (ISO 8601)
 - `end_time` (required): End timestamp (ISO 8601)
 - `environment_id` (optional): Filter by environment ID
@@ -252,6 +256,7 @@ Authorization: Bearer <token>
 - `per_page` (optional): Items per page (default: 50, max: 1000)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -295,14 +300,17 @@ Authorization: Bearer <token>
 ```
 
 **Path Parameters:**
+
 - `track_id` (required): Track identifier
 
 **Query Parameters:**
+
 - `start_time` (optional): Start timestamp
 - `end_time` (optional): End timestamp
 - `include_trajectory` (optional): Include movement trajectory (default: false)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -370,6 +378,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -413,6 +422,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -437,6 +447,7 @@ Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -458,6 +469,7 @@ Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -507,6 +519,7 @@ Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -531,6 +544,7 @@ Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -597,6 +611,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -625,6 +640,7 @@ Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -664,12 +680,14 @@ Authorization: Bearer <token>
 ```
 
 **Query Parameters:**
+
 - `start_time` (required): Start timestamp
 - `end_time` (required): End timestamp
 - `environment_id` (optional): Filter by environment
 - `granularity` (optional): Data granularity (hour, day, week)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -721,6 +739,7 @@ Authorization: Bearer <token>
 ```
 
 **Query Parameters:**
+
 - `start_time` (optional): Start timestamp
 - `end_time` (optional): End timestamp
 - `event_type` (optional): Filter by event type (fall, alert, activity)
@@ -728,6 +747,7 @@ Authorization: Bearer <token>
 - `environment_id` (optional): Filter by environment
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -770,12 +790,14 @@ Authorization: Bearer <token>
 ```
 
 **Query Parameters:**
+
 - `start_time` (required): Start timestamp
 - `end_time` (required): End timestamp
 - `environment_id` (optional): Filter by environment
 - `interval` (optional): Data interval (5min, 15min, 1hour)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -821,6 +843,7 @@ GET /api/v1/health
 ```
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -840,6 +863,7 @@ Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -899,11 +923,13 @@ Authorization: Bearer <token>
 ```
 
 **Query Parameters:**
+
 - `start_time` (optional): Start timestamp for historical metrics
 - `end_time` (optional): End timestamp for historical metrics
 - `metric_type` (optional): Filter by metric type
 
 **Response:**
+
 ```json
 {
   "success": true,

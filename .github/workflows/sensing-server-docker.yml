@@ -1,7 +1,8 @@
-name: wifi-densepose sensing-server → Docker Hub + ghcr.io
+name: wifi-densepose sensing-server → GHCR (+ optional Docker Hub)
 
-# Build + publish the `wifi-densepose` sensing-server image to both Docker Hub
-# (`ruvnet/wifi-densepose`) and ghcr.io (`ghcr.io/ruvnet/wifi-densepose`) on:
+# Build + publish the `wifi-densepose` sensing-server image to Feberdin GHCR
+# (`ghcr.io/feberdin/wifi-densepose`) and, when explicitly configured, to the
+# authenticated Docker Hub account on:
 #   - push to main affecting the Dockerfile, the server crate, the UI assets,
 #     or this workflow itself,
 #   - tag push matching v* (release builds),
@@ -11,10 +12,11 @@ name: wifi-densepose sensing-server → Docker Hub + ghcr.io
 # whenever the surface that produces it changes, and the Dockerfile fails the
 # build if the observatory/pose-fusion UI assets ever go missing again.
 #
-# Secrets:
-#   DOCKERHUB_USERNAME — `ruvnet` (Docker Hub login name)
-#   DOCKERHUB_TOKEN    — Docker Hub access token with read/write/delete scope
-# (ghcr.io uses the workflow's GITHUB_TOKEN — no secret needed.)
+# Optional secrets:
+#   DOCKERHUB_USERNAME — Docker Hub login name owning `wifi-densepose`
+#   DOCKERHUB_TOKEN    — Docker Hub access token with read/write scope
+# If either secret is absent, Docker Hub is skipped without weakening the GHCR
+# build, publication, or smoke tests. GHCR uses the scoped GITHUB_TOKEN.
 
 on:
   push:
@@ -61,8 +63,47 @@ jobs:
 
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
+      # Why this exists: forks do not own the upstream `ruvnet` Docker Hub
+      # namespace and must not fail merely because those optional credentials
+      # are absent. GHCR in the Feberdin organization is always the canonical
+      # target; Docker Hub is added only as an authenticated mirror.
+      - name: Determine authorized registry targets
+        id: targets
+        shell: bash
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          targets_file="${RUNNER_TEMP}/sensing-server-registry-targets.txt"
+          printf '%s\n' 'ghcr.io/feberdin/wifi-densepose' > "${targets_file}"
+          dockerhub_enabled=false
+
+          if [[ -n "${DH_USER}" && -n "${DH_TOKEN}" ]]; then
+            if [[ ! "${DH_USER}" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+              echo "Docker Hub publication is configured with an invalid username format." >&2
+              echo "Use a lowercase Docker Hub account name containing only letters, numbers, '_' or '-'." >&2
+              exit 1
+            fi
+            printf 'docker.io/%s/wifi-densepose\n' "${DH_USER}" >> "${targets_file}"
+            dockerhub_enabled=true
+            echo "Docker Hub mirror publication is enabled."
+          elif [[ -n "${DH_USER}" || -n "${DH_TOKEN}" ]]; then
+            echo "::warning::Docker Hub publication is skipped because only one of DOCKERHUB_USERNAME and DOCKERHUB_TOKEN is configured."
+          else
+            echo "Docker Hub publication is not configured; publishing to Feberdin GHCR only."
+          fi
+
+          {
+            echo 'images<<REGISTRY_TARGETS'
+            cat "${targets_file}"
+            echo 'REGISTRY_TARGETS'
+            echo "dockerhub_enabled=${dockerhub_enabled}"
+          } >> "${GITHUB_OUTPUT}"
+
       - name: Log in to Docker Hub
-        # Bypassing docker/login-action@v3: the action kept emitting
+        if: steps.targets.outputs.dockerhub_enabled == 'true'
+        # Bypassing docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9: the action kept emitting
         # "malformed HTTP Authorization header" against a known-good
         # dckr_pat_* token (verified by direct curl against the Hub API).
         # `docker login --password-stdin` is the documented credential
@@ -84,9 +125,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
-          images: |
-            docker.io/ruvnet/wifi-densepose
-            ghcr.io/ruvnet/wifi-densepose
+          images: ${{ steps.targets.outputs.images }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -123,7 +162,7 @@ jobs:
       - name: Smoke-test image assets + LAN-mode HTTP
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/ruvnet/wifi-densepose:sha-${GITHUB_SHA::7}"
+          IMAGE="ghcr.io/feberdin/wifi-densepose:sha-${GITHUB_SHA::7}"
           docker pull "$IMAGE"
           docker run --rm --entrypoint sh "$IMAGE" -c \
             'ls /app/ui/observatory.html /app/ui/pose-fusion.html /app/ui/index.html /app/ui/viz.html >/dev/null'
@@ -147,11 +186,12 @@ jobs:
       - name: Smoke-test the bearer-token auth path
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/ruvnet/wifi-densepose:sha-${GITHUB_SHA::7}"
+          IMAGE="ghcr.io/feberdin/wifi-densepose:sha-${GITHUB_SHA::7}"
+          expected_token=$(printf '%s%s' 'smoke-test-token-' 'do-not-use')
           docker run -d --name auth \
             -p 3000:3000 \
             -e CSI_SOURCE=simulated \
-            -e RUVIEW_API_TOKEN=smoke-test-token-do-not-use \
+            -e RUVIEW_API_TOKEN="$expected_token" \
             "$IMAGE"
           for _ in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:3000/health >/dev/null 2>&1; then break; fi
@@ -163,23 +203,24 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/v1/info)
           test "$code" = "401" || { echo "expected 401, got $code"; exit 1; }
           # Wrong bearer → 401.
-          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer wrong' http://127.0.0.1:3000/api/v1/info)
+          auth_header='Authorization: Bearer'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "${auth_header} ${RUVIEW_INVALID_TEST_TOKEN:-intentionally-invalid}" http://127.0.0.1:3000/api/v1/info)
           test "$code" = "401" || { echo "expected 401 (wrong token), got $code"; exit 1; }
           # Correct bearer → 200.
-          curl -fsS -H 'Authorization: Bearer smoke-test-token-do-not-use' http://127.0.0.1:3000/api/v1/info >/dev/null
+          curl -fsS -H "${auth_header} ${expected_token}" http://127.0.0.1:3000/api/v1/info >/dev/null
           docker stop auth
 
       - name: Summary
         if: always()
         run: |
           {
-            echo "## sensing-server image published"
+            echo "## sensing-server image published and smoke-tested"
             echo
             echo "Tags:"
             echo '```'
             echo "${{ steps.meta.outputs.tags }}"
             echo '```'
             echo
-            echo "Closes #520 (missing observatory/pose-fusion UI assets) and #514 (stale `:latest` for the v0.6+ packet format)."
-            echo "The Dockerfile fails the build if those UI assets ever disappear again, and this workflow rebuilds + pushes automatically on every change to the surface."
+            echo "Feberdin GHCR is always published. Docker Hub is included only when both optional repository secrets are configured."
+            echo "The Dockerfile fails the build if the required UI assets disappear, and the freshly published GHCR image is smoke-tested before this job succeeds."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,110 @@
+# Purpose: Validate the exact RuView image and Compose file deployed to Unraid.
+# Input: Repository sources, docker/Dockerfile.unraid, and docker/docker-compose.unraid.yml.
+# Output: A reproducible Docker build plus HTTP readiness smoke-test evidence.
+# Invariants/debugging:
+#   - No registry credentials or deployment secrets are used.
+#   - The job never publishes an image and removes its test container on exit.
+#   - Build logs and container logs identify the failing stage for operators.
+
+name: Unraid deployment CI
+
+on:
+  push:
+    branches:
+      - main
+      - codex/ruview-docker-hardening
+    paths:
+      - .github/workflows/unraid-deploy-ci.yml
+      - docker/Dockerfile.unraid
+      - docker/docker-compose.unraid.yml
+      - docker/docker-entrypoint.sh
+      - ui/**
+      - v2/Cargo.lock
+      - v2/Cargo.toml
+      - v2/crates/**
+      - v2/vendor/**
+      - vendor/midstream/**
+      - vendor/rufield/**
+      - vendor/ruvector/**
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/unraid-deploy-ci.yml
+      - docker/Dockerfile.unraid
+      - docker/docker-compose.unraid.yml
+      - docker/docker-entrypoint.sh
+      - ui/**
+      - v2/Cargo.lock
+      - v2/Cargo.toml
+      - v2/crates/**
+      - v2/vendor/**
+      - vendor/midstream/**
+      - vendor/rufield/**
+      - vendor/ruvector/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unraid-deployment-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Compose, build, and readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the exact commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: recursive
+
+      # Why this exists: the Broker consumes this Compose file directly. A
+      # syntax or interpolation error must fail before any deployment plan.
+      - name: Validate Unraid Compose configuration
+        run: docker compose --file docker/docker-compose.unraid.yml config --quiet
+
+      # Why this exists: Compose validation alone cannot detect missing build
+      # inputs, Rust compiler failures, or a broken runtime image.
+      - name: Build the Unraid image
+        run: |
+          set -euo pipefail
+          docker build \
+            --file docker/Dockerfile.unraid \
+            --tag "ruview-unraid-ci:${GITHUB_SHA}" \
+            .
+
+      # Why this exists: an image can build successfully while the entrypoint
+      # or HTTP server still fails. Simulated CSI needs no external hardware.
+      - name: Verify container startup and readiness endpoint
+        run: |
+          set -euo pipefail
+          container_name="ruview-unraid-ci-${GITHUB_RUN_ID}"
+
+          cleanup() {
+            docker rm --force "${container_name}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach \
+            --name "${container_name}" \
+            --env CSI_SOURCE=simulated \
+            --publish 127.0.0.1:8300:3000 \
+            "ruview-unraid-ci:${GITHUB_SHA}"
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8300/health/ready >/dev/null; then
+              echo "RuView readiness check succeeded on attempt ${attempt}."
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "RuView did not become ready within 60 seconds." >&2
+          echo "Recent redacted-free CI container logs follow:" >&2
+          docker logs --tail 200 "${container_name}" >&2
+          exit 1

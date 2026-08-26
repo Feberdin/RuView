@@ -137,6 +137,7 @@ exclude = [
     "crates/wifi-densepose-wasm-edge",
     "crates/homecore-plugin-example",
     "crates/worldgraph",   # ruvnet/worldgraph submodule — its own workspace (geo/worldgraph/worldmodel)
+    "vendor/glib-0.18.5",  # reviewed GTK3-compatible RustSec backport
     # Standalone compatibility patch with its own committed lockfile. Keeping
     # it outside the main workspace makes its audit and dependency updates
     # reproducible instead of failing with Cargo's nested-workspace error.
@@ -306,4 +307,5 @@ debug = true
 # release containing both RustSec memory-safety fixes. Remove the overlay once
 # the published midstreamer-temporal-compare crate requires lru >= 0.18.2.
 [patch.crates-io]
+glib = { path = "vendor/glib-0.18.5" }
 midstreamer-temporal-compare = { path = "vendor/midstreamer-temporal-compare" }

@@ -1,0 +1,9 @@
+appId: com.ruvnet.wifidensepose
+name: Offline startup falls back to clearly labelled simulation
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Simulated"
+    timeout: 20000
+- assertVisible: "SIM"

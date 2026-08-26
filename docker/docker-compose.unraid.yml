@@ -1,0 +1,72 @@
+# Purpose: Unraid/Broker deployment for RuView's primary Rust sensing server.
+# Input: Immutable CI-published GHCR image. Operators may override RUST_LOG,
+#        CSI_SOURCE, and MODELS_DIR through the Broker-approved environment flow.
+# Output: One long-running service exposing RuView HTTP/UI, WebSocket, and ESP32
+#         CSI UDP input on conflict-free host ports.
+# Invariants/debugging:
+#   - Host ports stay in the 830x range except ESP32 UDP 5005, which sensor
+#     firmware commonly targets directly.
+#   - No secrets are required by default; add future secrets as secret://NAME.
+#   - Docker logs are bounded. Inspect status and logs via the Unraid Deployment
+#     Broker before using any broader server access.
+
+services:
+  sensing-server:
+    # Why this exists: a cold Rust build exceeds the Broker's bounded Unraid
+    # build window. CI builds and readiness-tests the exact candidate first;
+    # production consumes only its immutable registry digest.
+    image: ${RUVIEW_IMAGE:-ghcr.io/feberdin/ruview-unraid@sha256:4770fd5744f7e9cba4c10cd2b7b2643334262978f1addfb12732b5320a5ed6bc}
+    pull_policy: always
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Why this exists: deploy_apply must distinguish "container process is up"
+    # from "the Axum API is actually ready". The endpoint is intentionally
+    # unauthenticated and reports readiness without returning sensing data.
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - --max-time
+        - "5"
+        - http://127.0.0.1:3000/health/ready
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "192.168.57.10:8300:3000"   # REST API and bundled UI
+      - "192.168.57.10:8301:3001"   # WebSocket
+      - "192.168.57.10:5005:5005/udp"   # ESP32 CSI UDP input
+    environment:
+      RUST_LOG: ${RUST_LOG:-info,sensing_server=debug}
+      # Use esp32 by default on Unraid so hardware debugging keeps the UDP
+      # receiver open instead of falling back to simulated data after startup.
+      CSI_SOURCE: ${CSI_SOURCE:-esp32}
+      MODELS_DIR: ${MODELS_DIR:-data/models}
+      # The sensing server rejects unknown Host headers to prevent DNS rebinding.
+      # Permit the Unraid LAN address so the UI works at http://192.168.57.10:8300.
+      SENSING_ALLOWED_HOSTS: ${SENSING_ALLOWED_HOSTS:-192.168.57.10}
+    networks:
+      - default
+
+# Why this exists: Docker's automatically selected private ranges can overlap
+# with the Unraid LAN/VLAN routes. The Broker-managed 10.200.0.0/16 pool keeps
+# RuView traffic isolated from the physical 192.168.0.0/16 networks.
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.200.14.0/24
+          gateway: 10.200.14.1

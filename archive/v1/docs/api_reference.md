@@ -60,9 +60,10 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 ```
 
 **Response:**
+
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "<provided at runtime; never store in Git>",
   "token_type": "bearer",
   "expires_in": 86400
 }
@@ -79,6 +80,7 @@ curl -X POST http://localhost:8000/api/v1/auth/refresh \
 ### Public Endpoints
 
 Some endpoints are publicly accessible without authentication:
+
 - `GET /api/v1/health/*` - Health check endpoints
 - `GET /api/v1/version` - Version information
 - `GET /docs` - API documentation
@@ -86,14 +88,17 @@ Some endpoints are publicly accessible without authentication:
 ## Base URL and Versioning
 
 ### Base URL
-```
+
+```text
 http://localhost:8000/api/v1
 ```
 
 ### API Versioning
+
 The API uses URL path versioning. Current version is `v1`.
 
 ### Content Types
+
 - **Request**: `application/json`
 - **Response**: `application/json`
 - **WebSocket**: `application/json` messages
@@ -161,11 +166,13 @@ The API uses URL path versioning. Current version is `v1`.
 ## Rate Limiting
 
 ### Default Limits
+
 - **Authenticated users**: 1000 requests per hour
 - **Anonymous users**: 100 requests per hour
 - **WebSocket connections**: 10 concurrent per user
 
 ### Rate Limit Headers
+
 ```http
 X-RateLimit-Limit: 1000
 X-RateLimit-Remaining: 999
@@ -173,6 +180,7 @@ X-RateLimit-Reset: 1641556800
 ```
 
 ### Rate Limit Response
+
 ```json
 {
   "error": {
@@ -193,6 +201,7 @@ GET /api/v1/pose/current
 ```
 
 **Query Parameters:**
+
 - `zone_ids` (array, optional): Specific zones to analyze
 - `confidence_threshold` (float, optional): Minimum confidence (0.0-1.0)
 - `max_persons` (integer, optional): Maximum persons to detect (1-50)
@@ -200,12 +209,14 @@ GET /api/v1/pose/current
 - `include_segmentation` (boolean, optional): Include segmentation masks (default: false)
 
 **Example Request:**
+
 ```bash
 curl "http://localhost:8000/api/v1/pose/current?confidence_threshold=0.7&max_persons=5" \
   -H "Authorization: Bearer <token>"
 ```
 
 **Response:**
+
 ```json
 {
   "timestamp": "2025-01-07T10:00:00Z",
@@ -250,6 +261,7 @@ POST /api/v1/pose/analyze
 ```
 
 **Request Body:**
+
 ```json
 {
   "zone_ids": ["zone_001", "zone_002"],
@@ -271,15 +283,18 @@ GET /api/v1/pose/zones/{zone_id}/occupancy
 ```
 
 **Path Parameters:**
+
 - `zone_id` (string): Zone identifier
 
 **Example Request:**
+
 ```bash
 curl "http://localhost:8000/api/v1/pose/zones/zone_001/occupancy" \
   -H "Authorization: Bearer <token>"
 ```
 
 **Response:**
+
 ```json
 {
   "zone_id": "zone_001",
@@ -305,6 +320,7 @@ GET /api/v1/pose/zones/summary
 ```
 
 **Response:**
+
 ```json
 {
   "timestamp": "2025-01-07T10:00:00Z",
@@ -334,6 +350,7 @@ POST /api/v1/pose/historical
 ```
 
 **Request Body:**
+
 ```json
 {
   "start_time": "2025-01-07T00:00:00Z",
@@ -345,6 +362,7 @@ POST /api/v1/pose/historical
 ```
 
 **Response:**
+
 ```json
 {
   "query": {
@@ -374,10 +392,12 @@ GET /api/v1/pose/activities
 ```
 
 **Query Parameters:**
+
 - `zone_id` (string, optional): Filter by zone
 - `limit` (integer, optional): Maximum activities (1-100, default: 10)
 
 **Response:**
+
 ```json
 {
   "activities": [
@@ -404,6 +424,7 @@ POST /api/v1/pose/calibrate
 ```
 
 **Response:**
+
 ```json
 {
   "calibration_id": "cal_12345",
@@ -422,6 +443,7 @@ GET /api/v1/pose/calibration/status
 ```
 
 **Response:**
+
 ```json
 {
   "is_calibrating": true,
@@ -442,9 +464,11 @@ GET /api/v1/pose/stats
 ```
 
 **Query Parameters:**
+
 - `hours` (integer, optional): Hours of data to analyze (1-168, default: 24)
 
 **Response:**
+
 ```json
 {
   "period": {
@@ -478,6 +502,7 @@ GET /api/v1/system/status
 ```
 
 **Response:**
+
 ```json
 {
   "status": "running",
@@ -505,6 +530,7 @@ POST /api/v1/system/start
 ```
 
 **Request Body:**
+
 ```json
 {
   "configuration": {
@@ -548,6 +574,7 @@ PUT /api/v1/config
 ```
 
 **Request Body:**
+
 ```json
 {
   "detection": {
@@ -571,6 +598,7 @@ GET /api/v1/health
 ```
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -627,6 +655,7 @@ GET /api/v1/ready
 ```
 
 **Response:**
+
 ```json
 {
   "ready": true,
@@ -651,6 +680,7 @@ GET /api/v1/live
 ```
 
 **Response:**
+
 ```json
 {
   "status": "alive",
@@ -675,6 +705,7 @@ GET /api/v1/version
 ```
 
 **Response:**
+
 ```json
 {
   "name": "WiFi-DensePose API",
@@ -808,6 +839,7 @@ ws.send(JSON.stringify({
 ### Keypoint Names
 
 Standard keypoint names following COCO format:
+
 - `nose`, `left_eye`, `right_eye`, `left_ear`, `right_ear`
 - `left_shoulder`, `right_shoulder`, `left_elbow`, `right_elbow`
 - `left_wrist`, `right_wrist`, `left_hip`, `right_hip`
@@ -816,6 +848,7 @@ Standard keypoint names following COCO format:
 ### Activity Types
 
 Supported activity classifications:
+
 - `standing`, `sitting`, `walking`, `running`, `lying_down`
 - `falling`, `jumping`, `bending`, `reaching`, `waving`
 
@@ -925,6 +958,7 @@ curl -X GET "http://localhost:8000/api/v1/pose/zones/zone_001/occupancy" \
 ---
 
 For more information, see:
+
 - [User Guide](user_guide.md)
 - [Deployment Guide](deployment.md)
 - [Troubleshooting Guide](troubleshooting.md)

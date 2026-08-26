@@ -37,6 +37,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 ```
 
 **Public Endpoints** (No authentication required):
+
 - `/` - Root endpoint
 - `/health`, `/ready`, `/live` - Health check endpoints
 - `/docs`, `/redoc`, `/openapi.json` - API documentation
@@ -47,6 +48,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 - `/api/v1/stream/status` - Stream status
 
 **Protected Endpoints** (Authentication required):
+
 - `/api/v1/pose/analyze` - Pose analysis
 - `/api/v1/pose/calibrate` - System calibration
 - `/api/v1/pose/historical` - Historical data
@@ -58,6 +60,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 #### Usage Examples
 
 **1. Obtaining a Token:**
+
 ```bash
 # Login endpoint (if implemented)
 curl -X POST http://localhost:8000/auth/login \
@@ -66,6 +69,7 @@ curl -X POST http://localhost:8000/auth/login \
 ```
 
 **2. Using Bearer Token:**
+
 ```bash
 # Authorization header
 curl -X POST http://localhost:8000/api/v1/pose/analyze \
@@ -75,6 +79,7 @@ curl -X POST http://localhost:8000/api/v1/pose/analyze \
 ```
 
 **3. WebSocket Authentication:**
+
 ```javascript
 // Query parameter for WebSocket
 const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
@@ -91,15 +96,18 @@ class APIKeyAuth:
 ```
 
 **Features:**
+
 - Simple key-based authentication
 - Service identification
 - Key management (add/revoke)
 
 **Usage:**
+
 ```bash
 # API Key in header
+api_key_header='X-API-Key'
 curl -X GET http://localhost:8000/api/v1/pose/current \
-  -H "X-API-Key: your-api-key-here"
+  -H "${api_key_header}: ${RUVIEW_API_KEY:?set RUVIEW_API_KEY}"
 ```
 
 ### Token Blacklist
@@ -135,11 +143,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 ```
 
 **Default Rate Limits:**
+
 - Anonymous users: 100 requests/hour (configurable)
 - Authenticated users: 1000 requests/hour (configurable)
 - Admin users: 10000 requests/hour
 
 **Path-Specific Limits:**
+
 - `/api/v1/pose/current`: 60 requests/minute
 - `/api/v1/pose/analyze`: 10 requests/minute
 - `/api/v1/pose/calibrate`: 1 request/5 minutes
@@ -150,7 +160,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 Rate limit information is included in response headers:
 
-```
+```http
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 95
 X-RateLimit-Window: 3600
@@ -158,7 +168,8 @@ X-RateLimit-Reset: 1641234567
 ```
 
 When rate limit is exceeded:
-```
+
+```http
 HTTP/1.1 429 Too Many Requests
 Retry-After: 60
 X-RateLimit-Limit: Exceeded
@@ -175,6 +186,7 @@ class AdaptiveRateLimit:
 ```
 
 **Load-based adjustments:**
+
 - High load (>80%): Reduce limits by 50%
 - Medium load (>60%): Reduce limits by 30%
 - Low load (<30%): Increase limits by 20%
@@ -223,6 +235,7 @@ class SecurityHeaders:
 ```
 
 **Headers included:**
+
 - `X-Content-Type-Options: nosniff` - Prevent MIME sniffing
 - `X-Frame-Options: DENY` - Prevent clickjacking
 - `X-XSS-Protection: 1; mode=block` - Enable XSS protection
@@ -290,6 +303,7 @@ python test_auth_rate_limit.py
 ```
 
 The test script covers:
+
 - Public endpoint access
 - Protected endpoint authentication
 - JWT token validation
@@ -301,6 +315,7 @@ The test script covers:
 ### Manual Testing
 
 **1. Test Authentication:**
+
 ```bash
 # Without token (should fail)
 curl -X POST http://localhost:8000/api/v1/pose/analyze
@@ -311,6 +326,7 @@ curl -X POST http://localhost:8000/api/v1/pose/analyze \
 ```
 
 **2. Test Rate Limiting:**
+
 ```bash
 # Send multiple requests quickly
 for i in {1..150}; do
@@ -320,6 +336,7 @@ done
 ```
 
 **3. Test CORS:**
+
 ```bash
 # Preflight request
 curl -X OPTIONS http://localhost:8000/api/v1/pose/current \

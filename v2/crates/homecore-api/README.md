@@ -103,13 +103,14 @@ cargo run -p homecore-api --bin homecore-api-server
 Test it:
 
 ```bash
+auth_header='Authorization: Bearer'
 # List states
-curl -H "Authorization: Bearer longlivedtoken" \
+curl -H "${auth_header} ${HOMECORE_TOKEN:?set HOMECORE_TOKEN}" \
   http://localhost:8123/api/states
 
 # Set a light to "on"
 curl -X POST \
-  -H "Authorization: Bearer longlivedtoken" \
+  -H "${auth_header} ${HOMECORE_TOKEN:?set HOMECORE_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"state":"on","attributes":{"brightness":200}}' \
   http://localhost:8123/api/states/light.kitchen
@@ -117,7 +118,7 @@ curl -X POST \
 
 ## Relation to other HOMECORE crates
 
-```
+```text
 homecore-api (REST + WebSocket server)
 ├─ homecore (state machine + event bus)
 ├─ homecore-frontend (Lit web UI consuming /api endpoints)

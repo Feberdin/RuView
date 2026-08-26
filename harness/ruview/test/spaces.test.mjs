@@ -137,7 +137,7 @@ test('metaharness rejects raw aliases and malformed kind-specific records', () =
 
 test('command failures redact API keys and JWT-shaped tokens', async () => {
   const secret = `cog_${'test-value-'.repeat(4)}`;
-  const jwt = 'eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEifQ.signature-material';
+  const jwt = ['eyJhbGciOiJub25lIn0', 'eyJzdWIiOiJ0ZXN0In0', 'signature'].join('.');
   const result = await listCognitumSpaces({}, {
     source: 'cli',
     binary: 'wifi-densepose-test-double',

@@ -40,9 +40,10 @@ curl -X POST http://localhost:8000/api/v1/auth/token \
 ```
 
 **Response:**
+
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "<provided at runtime; never store in Git>",
   "token_type": "bearer",
   "expires_in": 86400
 }
@@ -71,11 +72,13 @@ Retrieve the most recent pose estimation results.
 **Endpoint:** `GET /pose/latest`
 
 **Headers:**
+
 ```http
 Authorization: Bearer <token>
 ```
 
 **Response:**
+
 ```json
 {
   "timestamp": "2025-01-07T04:46:32.123Z",
@@ -134,6 +137,7 @@ Authorization: Bearer <token>
 ```
 
 **Status Codes:**
+
 - `200 OK`: Success
 - `404 Not Found`: No pose data available
 - `401 Unauthorized`: Authentication required
@@ -146,6 +150,7 @@ Retrieve historical pose data with filtering options.
 **Endpoint:** `GET /pose/history`
 
 **Query Parameters:**
+
 - `start_time` (optional): ISO 8601 timestamp for range start
 - `end_time` (optional): ISO 8601 timestamp for range end
 - `limit` (optional): Maximum number of records (default: 100, max: 1000)
@@ -153,12 +158,14 @@ Retrieve historical pose data with filtering options.
 - `confidence_threshold` (optional): Minimum confidence score (0.0-1.0)
 
 **Example:**
+
 ```bash
 curl "http://localhost:8000/api/v1/pose/history?start_time=2025-01-07T00:00:00Z&limit=50&confidence_threshold=0.7" \
   -H "Authorization: Bearer <token>"
 ```
 
 **Response:**
+
 ```json
 {
   "poses": [
@@ -184,6 +191,7 @@ Execute complex queries on pose data with aggregation support.
 **Endpoint:** `POST /pose/query`
 
 **Request Body:**
+
 ```json
 {
   "query": {
@@ -205,6 +213,7 @@ Execute complex queries on pose data with aggregation support.
 ```
 
 **Response:**
+
 ```json
 {
   "results": [
@@ -235,6 +244,7 @@ Get comprehensive system health and status information.
 **Endpoint:** `GET /system/status`
 
 **Response:**
+
 ```json
 {
   "status": "running",
@@ -280,6 +290,7 @@ Start the pose estimation system with configuration options.
 **Endpoint:** `POST /system/start`
 
 **Request Body:**
+
 ```json
 {
   "configuration": {
@@ -291,6 +302,7 @@ Start the pose estimation system with configuration options.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "starting",
@@ -317,6 +329,7 @@ Gracefully stop the pose estimation system.
 **Endpoint:** `POST /system/stop`
 
 **Request Body:**
+
 ```json
 {
   "force": false,
@@ -325,6 +338,7 @@ Gracefully stop the pose estimation system.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "stopping",
@@ -353,6 +367,7 @@ Retrieve current system configuration.
 **Endpoint:** `GET /config`
 
 **Response:**
+
 ```json
 {
   "domain": "healthcare",
@@ -392,6 +407,7 @@ Update system configuration with partial updates supported.
 **Endpoint:** `PUT /config`
 
 **Request Body:**
+
 ```json
 {
   "detection": {
@@ -407,6 +423,7 @@ Update system configuration with partial updates supported.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "updated",
@@ -429,16 +446,19 @@ Get healthcare-specific analytics and insights.
 **Endpoint:** `GET /analytics/healthcare`
 
 **Query Parameters:**
+
 - `period`: Time period (hour, day, week, month)
 - `metrics`: Comma-separated list of metrics
 
 **Example:**
+
 ```bash
 curl "http://localhost:8000/api/v1/analytics/healthcare?period=day&metrics=fall_events,activity_summary" \
   -H "Authorization: Bearer <token>"
 ```
 
 **Response:**
+
 ```json
 {
   "period": "day",
@@ -479,6 +499,7 @@ Get retail-specific analytics and customer insights.
 **Endpoint:** `GET /analytics/retail`
 
 **Response:**
+
 ```json
 {
   "period": "day",
@@ -530,6 +551,7 @@ Get security-specific analytics and threat assessments.
 **Endpoint:** `GET /analytics/security`
 
 **Response:**
+
 ```json
 {
   "period": "day",
@@ -571,6 +593,7 @@ Connect to the WebSocket endpoint for real-time data streaming.
 **Endpoint:** `ws://localhost:8000/ws/pose`
 
 **Authentication:** Include token as query parameter or in headers:
+
 ```javascript
 const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ```
@@ -578,6 +601,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ### Connection Establishment
 
 **Server Message:**
+
 ```json
 {
   "type": "connection_established",
@@ -590,6 +614,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ### Subscription Management
 
 **Subscribe to Pose Updates:**
+
 ```json
 {
   "type": "subscribe",
@@ -604,6 +629,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ```
 
 **Subscription Confirmation:**
+
 ```json
 {
   "type": "subscription_confirmed",
@@ -619,6 +645,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ### Real-Time Data Streaming
 
 **Pose Update Message:**
+
 ```json
 {
   "type": "pose_update",
@@ -633,6 +660,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ```
 
 **System Status Update:**
+
 ```json
 {
   "type": "system_status",
@@ -649,6 +677,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ### Alert Streaming
 
 **Subscribe to Alerts:**
+
 ```json
 {
   "type": "subscribe",
@@ -661,6 +690,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ```
 
 **Alert Message:**
+
 ```json
 {
   "type": "alert",
@@ -706,12 +736,14 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 ### HTTP Status Codes
 
 #### Success Codes
+
 - `200 OK`: Request successful
 - `201 Created`: Resource created successfully
 - `202 Accepted`: Request accepted for processing
 - `204 No Content`: Request successful, no content returned
 
 #### Client Error Codes
+
 - `400 Bad Request`: Invalid request format or parameters
 - `401 Unauthorized`: Authentication required or invalid
 - `403 Forbidden`: Insufficient permissions
@@ -721,6 +753,7 @@ const ws = new WebSocket('ws://localhost:8000/ws/pose?token=<your-jwt-token>');
 - `429 Too Many Requests`: Rate limit exceeded
 
 #### Server Error Codes
+
 - `500 Internal Server Error`: Unexpected server error
 - `502 Bad Gateway`: Upstream service error
 - `503 Service Unavailable`: System not ready or overloaded
@@ -983,6 +1016,7 @@ curl "http://localhost:8000/api/v1/analytics/healthcare?period=day" \
 ---
 
 For more detailed information, see:
+
 - [Getting Started Guide](getting-started.md)
 - [Configuration Guide](configuration.md)
 - [WebSocket API Documentation](../api/websocket-api.md)

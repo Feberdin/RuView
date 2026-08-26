@@ -1,5 +1,12 @@
 # π RuView
 
+> **Feberdin security-maintained fork.** This repository preserves the GitHub
+> fork relationship with [`ruvnet/RuView`](https://github.com/ruvnet/RuView),
+> follows current upstream functionality, and adds blocking dependency and
+> secret gates. See [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), and
+> the [hardening record](docs/security/dependency-hardening.md). Never place real
+> credentials or private sensing data in examples, issues, logs, or commits.
+
 <p align="center">
   <a href="https://cognitum.one/seed">
     <img src="assets/ruview-seed.png" alt="RuView - WiFi DensePose" width="100%">
@@ -16,7 +23,7 @@
   </a>
 </p>
 
-## **See through walls with WiFi** ##
+## **See through walls with WiFi**
 
 **Turn ordinary WiFi into a spatial intelligence / sensing system.** Detect people, measure breathing and heart rate, track movement, and monitor rooms — through walls, in the dark, with no cameras or wearables. Just physics.
 
@@ -26,11 +33,12 @@ Works natively with the four major smart-home ecosystems: **[Home Assistant](doc
 
 > Drop into any **Home Assistant** install with one `--mqtt` flag. Or pair into **Apple Home / Google Home / Alexa / SmartThings** as a Matter Bridge. Ships 21 entities per node (11 raw signals + 10 inferred semantic states: someone-sleeping, possible-distress, room-active, elderly-inactivity-anomaly, meeting-in-progress, bathroom-occupied, fall-risk-elevated, bed-exit, no-movement, multi-room-transition) plus 3 starter HA Blueprints. See [`docs/integrations/home-assistant.md`](docs/integrations/home-assistant.md) · [ADR-115](docs/adr/ADR-115-home-assistant-integration.md).
 
-### π RuView is a WiFi sensing platform that turns radio signals into spatial intelligence.
+### π RuView is a WiFi sensing platform that turns radio signals into spatial intelligence
 
 Every WiFi router already fills your space with radio waves. When people move, breathe, or even sit still, they disturb those waves in measurable ways. RuView captures these disturbances using Channel State Information (CSI) from low-cost ESP32 sensors and turns them into actionable data: who's there, what they're doing, and whether they're okay.
 
 **What it senses:**
+
 - **Presence and occupancy** — detect people through walls, count them, track entries and exits
 - **Vital signs** — breathing rate and heart rate, contactless, while sleeping or sitting
 - **Activity recognition** — walking, sitting, gestures, falls — from temporal CSI patterns
@@ -83,18 +91,17 @@ RuView turns ordinary WiFi into a contactless sensor. A $9 ESP32 board reads the
 
 ### Built for low-power edge applications
 
-[Edge modules](#edge-intelligence-adr-041) are small programs that run directly on the ESP32 sensor — no internet needed, no cloud fees, instant response.
+[Edge modules](#-edge-module-catalog) are small programs that run directly on the ESP32 sensor — no internet needed, no cloud fees, instant response.
 
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85+-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests: 1463](https://img.shields.io/badge/tests-1463%20passed-brightgreen.svg)](https://github.com/ruvnet/RuView)
 [![Docker: multi-arch](https://img.shields.io/badge/docker-amd64%20%2B%20arm64-blue.svg)](https://hub.docker.com/r/ruvnet/wifi-densepose)
-[![Vital Signs](https://img.shields.io/badge/vital%20signs-breathing%20%2B%20heartbeat-red.svg)](#vital-sign-detection)
-[![ESP32 Ready](https://img.shields.io/badge/ESP32--S3-CSI%20streaming-purple.svg)](#esp32-s3-hardware-pipeline)
+[![Vital Signs](https://img.shields.io/badge/vital%20signs-breathing%20%2B%20heartbeat-red.svg)](docs/adr/ADR-021-vital-sign-detection-rvdna-pipeline.md)
+[![ESP32 Ready](https://img.shields.io/badge/ESP32--S3-CSI%20streaming-purple.svg)](docs/adr/ADR-018-esp32-dev-implementation.md)
 [![crates.io](https://img.shields.io/crates/v/wifi-densepose-ruvector.svg)](https://crates.io/crates/wifi-densepose-ruvector)
 [![Downloads](https://img.shields.io/badge/downloads-10M%2B-brightgreen.svg)](#-edge-module-catalog)
 
- 
 > | What | How | Speed / scale |
 > |------|-----|---------------|
 > | 🫁 **Breathing rate** | Bandpass 0.1–0.5 Hz on wrapped phase, circular variance, zero-crossing BPM ([#593](https://github.com/ruvnet/RuView/issues/593)) | 6–30 BPM, real-time |
@@ -115,15 +122,18 @@ RuView turns ordinary WiFi into a contactless sensor. A $9 ESP32 board reads the
 >
 > Browse the full 105-module catalog (with practical descriptions, sizes, and difficulty) below in [🧩 Edge Module Catalog](#-edge-module-catalog), or visit [seed.cognitum.one/store](https://seed.cognitum.one/store).
 >
-> 🤗 **Pretrained weights**: download from [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained) — see [Loading the pretrained model](#loading-the-pretrained-model) below for one-command setup.
+> 🤗 **Pretrained weights**: download from [`ruvnet/wifi-densepose-pretrained`](https://huggingface.co/ruvnet/wifi-densepose-pretrained) — see the [pretrained model section](#-pretrained-model-on-hugging-face) below for one-command setup.
 
 <details>
 <summary><strong>Quick start options</strong> — Docker, ESP32-S3/C6, Cognitum Seed, and Python</summary>
 
+### Quick start
+
 ```bash
 # Option 1: Docker (simulated data, no hardware needed)
 docker pull ruvnet/wifi-densepose:latest
-docker run -p 3000:3000 ruvnet/wifi-densepose:latest
+docker run -p 3000:3000 -e CSI_SOURCE=simulated \
+  ruvnet/wifi-densepose:latest
 # Open http://localhost:3000
 
 # Option 2a: Live sensing with ESP32-S3 hardware ($9)
@@ -165,13 +175,36 @@ pip install "ruview[client]"              # or: pip install "wifi-densepose[clie
 # from ruview.client import SensingClient, RuViewMqttClient
 ```
 
+### Feberdin Unraid GitOps deployment
+
+The Feberdin deployment definition remains in
+`docker/docker-compose.unraid.yml`. A cold Rust build exceeds the bounded
+deployment window on the server, so
+`.github/workflows/unraid-image-publish.yml` builds the amd64 image in CI,
+starts it with simulated CSI, verifies `/health/ready`, and only then publishes
+a full-commit tag to Feberdin GHCR. Production Compose references that reviewed
+artifact by immutable digest; it never uses a mutable `latest` tag.
+
+Validate a change locally from the repository root:
+
+```bash
+docker compose --project-directory . \
+  --file docker/docker-compose.unraid.yml config --quiet
+```
+
+Deployment is performed only through the Feberdin Unraid Deployment Broker:
+`stack_validate` → `deploy_plan` → plan-bound approval when required →
+`deploy_apply` → status, health, and redacted log checks. Do not run direct
+remote Docker or SSH commands. Optional credentials must use Broker-managed
+`secret://NAME` references and must never be baked into an image.
+
 </details>
 
 [![PyPI ruview](https://img.shields.io/pypi/v/ruview?label=ruview)](https://pypi.org/project/ruview/) [![PyPI wifi-densepose](https://img.shields.io/pypi/v/wifi-densepose?label=wifi-densepose)](https://pypi.org/project/wifi-densepose/)
 
 > [!NOTE]
 > **CSI-capable hardware recommended.** Presence, vital signs, through-wall sensing, and all advanced capabilities require Channel State Information (CSI) from an ESP32-S3 ($9) or research NIC. The Docker image runs with simulated data for evaluation. Consumer WiFi laptops provide RSSI-only presence detection.
-
+>
 > **Hardware options** for live CSI capture:
 >
 > | Option | Hardware | Cost | Full CSI | Capabilities |
@@ -188,7 +221,6 @@ pip install "ruview[client]"              # or: pip install "wifi-densepose[clie
 >
 ---
 
-
   <a href="https://ruvnet.github.io/RuView/">
     <img src="assets/v2-screen.png" alt="WiFi DensePose — Live pose detection with setup guide" width="800">
   </a>
@@ -203,12 +235,11 @@ pip install "ruview[client]"              # or: pip install "wifi-densepose[clie
   &nbsp;|&nbsp;
   <a href="https://ruvnet.github.io/RuView/three.js/"><strong>▶ three.js Demos (5)</strong></a>
 
-> The [server](#-quick-start) is optional for visualization and aggregation — the ESP32 [runs independently](#esp32-s3-hardware-pipeline) for presence detection, vital signs, and fall alerts.
+> The [server](#quick-start) is optional for visualization and aggregation — the ESP32 [runs independently](docs/adr/ADR-018-esp32-dev-implementation.md) for presence detection, vital signs, and fall alerts.
 >
-> **Live ESP32 pipeline**: Connect an ESP32-S3 node → run the [sensing server](#sensing-server) → open the [pose fusion demo](https://ruvnet.github.io/RuView/pose-fusion.html) for real-time dual-modal pose estimation (webcam + WiFi CSI). See [ADR-059](docs/adr/ADR-059-live-esp32-csi-pipeline.md). (The webcam supplies ground-truth pose in this dual-modal demo; the CSI-only on-device 17-keypoint model is still first-cut — see [Model weights: what's real, what's not](#model-weights-whats-real-whats-not).)
+> **Live ESP32 pipeline**: Connect an ESP32-S3 node → run the [sensing server](docs/adr/ADR-055-integrated-sensing-server.md) → open the [pose fusion demo](https://ruvnet.github.io/RuView/pose-fusion.html) for real-time dual-modal pose estimation (webcam + WiFi CSI). See [ADR-059](docs/adr/ADR-059-live-esp32-csi-pipeline.md). (The webcam supplies ground-truth pose in this dual-modal demo; the CSI-only on-device 17-keypoint model is still first-cut — see [Model weights: what's real, what's not](#model-weights-whats-real-whats-not).)
 >
 > **three.js scene gallery** at [`/three.js/`](https://ruvnet.github.io/RuView/three.js/) — five progressively richer ADR-097 demos: helpers, cinematic, GLTF skinned, FBX skinned, and a live MediaPipe→Mixamo retargeting feed driven by ESP32 CSI. Demos 04 and 05 require a local Mixamo `X Bot.fbx` (license boundary — not redistributed).
-
 
 ## 🤗 Pretrained model on Hugging Face
 
@@ -286,7 +317,6 @@ number. The path to a first *reproducible* on-device baseline (PCK@20 ≥ 35%) i
 [ADR-079](docs/adr/ADR-079-camera-ground-truth-training.md) / [#645](https://github.com/ruvnet/RuView/issues/645) — do not advertise the live single-ESP32 17-keypoint feature without the "first-cut, below-target, runtime-stub" caveat until that baseline is measured.
 
 </details>
-
 
 ## 🧩 Edge Module Catalog
 
@@ -461,12 +491,11 @@ Browse and install modules at [seed.cognitum.one/store](https://seed.cognitum.on
 
 </details>
 
-
 ## 🔬 How It Works
 
 WiFi routers flood every room with radio waves. When a person moves — or even breathes — those waves scatter differently. WiFi DensePose reads that scattering pattern and reconstructs what happened:
 
-```
+```text
 WiFi Router → radio waves pass through room → hit human body → scatter
     ↓
 ESP32 mesh (4-6 nodes) captures CSI on channels 1/6/11 via TDM protocol
@@ -583,7 +612,6 @@ These scenarios exploit WiFi's ability to penetrate solid materials — concrete
 
 </details>
 
-
 ---
 
 ## 🧠 Self-Learning WiFi AI
@@ -596,13 +624,14 @@ Learn compact room fingerprints from raw CSI and adapt the model to each environ
 Every WiFi signal that passes through a room creates a unique fingerprint of that space. WiFi-DensePose already reads these fingerprints to track people, but until now it threw away the internal "understanding" after each reading. The Self-Learning WiFi AI captures and preserves that understanding as compact, reusable vectors — and continuously optimizes itself for each new environment.
 
 **What it does in plain terms:**
+
 - Turns any WiFi signal into a 128-number "fingerprint" that uniquely describes what's happening in a room
 - Learns entirely on its own from raw WiFi data — no cameras, no labeling, no human supervision needed
 - Recognizes rooms, detects intruders, and classifies activities using only WiFi (named person-identity is an experimental, data-gated research capability — see below, not a shipped feature)
 - Runs on an $8 ESP32 chip (the entire model fits in 55 KB of memory)
 - Produces both body pose tracking AND environment fingerprints in a single computation
 
-**Key Capabilities**
+### Key capabilities
 
 | What | How it works | Why it matters |
 |------|-------------|----------------|
@@ -614,15 +643,15 @@ Every WiFi signal that passes through a room creates a unique fingerprint of tha
 | **Memory preservation** | EWC++ regularization remembers what was learned during pretraining | Switching to a new task doesn't erase prior knowledge |
 | **Hard-negative mining** | Training focuses on the most confusing examples to learn faster | Better accuracy with the same amount of training data |
 
-**Architecture**
+### Architecture
 
-```
+```text
 WiFi Signal [56 channels] → Transformer + Graph Neural Network
                                   ├→ 128-dim environment fingerprint (for search + identification)
                                   └→ 17-joint body pose (for human tracking)
 ```
 
-**Quick Start**
+### Quick start commands
 
 ```bash
 # Step 1: Learn from raw WiFi data (no labels needed)
@@ -638,7 +667,7 @@ cargo run -p wifi-densepose-sensing-server -- --model model.rvf --embed
 cargo run -p wifi-densepose-sensing-server -- --model model.rvf --build-index env
 ```
 
-**Training Modes**
+### Training modes
 
 | Mode | What you need | What you get |
 |------|--------------|-------------|
@@ -646,7 +675,7 @@ cargo run -p wifi-densepose-sensing-server -- --model model.rvf --build-index en
 | Supervised | WiFi data + body pose labels | Full pose tracking + environment fingerprints |
 | Cross-Modal | WiFi data + camera footage | Fingerprints aligned with visual understanding |
 
-**Fingerprint Index Types**
+### Fingerprint index types
 
 | Index | What it stores | Real-world use |
 |-------|---------------|----------------|
@@ -655,7 +684,7 @@ cargo run -p wifi-densepose-sensing-server -- --model model.rvf --build-index en
 | `temporal_baseline` | Normal conditions | "Something unusual just happened in this room" |
 | `person_track` | Individual movement signatures | "Person A just entered the living room" |
 
-**Model Size**
+### Model size
 
 | Component | Parameters | Memory (on ESP32) |
 |-----------|-----------|-------------------|
@@ -664,7 +693,7 @@ cargo run -p wifi-densepose-sensing-server -- --model model.rvf --build-index en
 | Per-room MicroLoRA adapter | ~1,800 | 2 KB |
 | **Total** | **~55,000** | **55 KB** (of 520 KB available) |
 
-The self-learning system builds on the [AI Backbone (RuVector)](#ai-backbone-ruvector) signal-processing layer — attention, graph algorithms, and compression — adding contrastive learning on top.
+The self-learning system builds on the [RuVector AI migration](docs/adr/ADR-020-rust-ruvector-ai-model-migration.md) signal-processing layer — attention, graph algorithms, and compression — adding contrastive learning on top.
 
 See [`docs/adr/ADR-024-contrastive-csi-embedding-model.md`](docs/adr/ADR-024-contrastive-csi-embedding-model.md) for full architectural details.
 
@@ -744,6 +773,7 @@ Start with the user, build, and calibration guides; expand for the full referenc
 ## 🚧 Beta software
 
 > **Beta Software** — Under active development. APIs and firmware may change. Known limitations:
+>
 > - ESP32-C3 and original ESP32 are not supported (single-core, insufficient for CSI DSP)
 > - Single ESP32 deployments have limited spatial resolution — use 2+ nodes or add a [Cognitum Seed](https://cognitum.one) for best results
 > - Camera-free pose accuracy is limited (PCK@20 ≈ 2.5% with proxy labels) — [camera ground-truth training](docs/adr/ADR-079-camera-ground-truth-training.md) targets **35%+ PCK@20**; the pipeline is implemented, but the data-collection and evaluation phases (ADR-079 P7–P9) are still pending.

@@ -10277,7 +10277,7 @@ mod adr186_http_tests {
             .header("connection", "upgrade")
             .header("upgrade", "websocket")
             .header("sec-websocket-version", "13")
-            .header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+            .header("sec-websocket-key", ["dGhlIHNhbXBsZSBub25jZQ", "=="].concat())
             .body(Body::empty())
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();

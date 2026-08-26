@@ -1,0 +1,131 @@
+# Purpose: Block newly introduced dependency advisories across every maintained
+# package family in this monorepo.
+# Input: Reviewed manifests and lockfiles committed to the repository.
+# Output: A failing check on any npm, Python, Rust, or secret finding; no
+# deployment or publication occurs.
+# Invariants/debugging: installs never run project lifecycle scripts, no secret
+# values are printed, and every command is reproducible from the named package.
+
+name: Dependency and secret security gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 3 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-audit:
+    name: npm audit (${{ matrix.directory }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - dashboard
+          - examples/frontend
+          - harness/homecore
+          - harness/ruview
+          - integrations/iphone-lidar/web
+          - tools/ruview-cli
+          - tools/ruview-mcp
+          - ui/mobile
+          - v2/crates/wifi-densepose-desktop/ui
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - name: Check out the exact commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Use the supported Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ${{ matrix.directory }}/package-lock.json
+
+      - name: Install the reviewed lockfile without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Reject every known npm advisory
+        run: npm audit --audit-level=low
+
+  python-audit:
+    name: Python audit (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aether-arena/space/requirements.txt
+          - archive/v1/requirements-lock.txt
+    steps:
+      - name: Check out the exact commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Use the supported Python runtime
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Install the audit tool
+        run: python -m pip install --disable-pip-version-check 'pip-audit==2.10.0'
+
+      - name: Reject every known Python advisory
+        run: pip-audit --strict --requirement "${{ matrix.target }}"
+
+  cargo-audit:
+    name: Rust audit (${{ matrix.lockfile }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        lockfile:
+          - python/Cargo.lock
+          - v2/Cargo.lock
+          - v2/crates/homecore-plugin-example/Cargo.lock
+          - v2/crates/wifi-densepose-physics/fuzz/Cargo.lock
+          - v2/crates/wifi-densepose-wasm-edge/Cargo.lock
+          - v2/patches/ruvector-crv/Cargo.lock
+    steps:
+      - name: Check out the exact commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install the reviewed Rust toolchain
+        run: rustup toolchain install 1.94.0 --profile minimal
+
+      - name: Install cargo-audit
+        run: cargo +1.94.0 install cargo-audit --version 0.22.2 --locked
+
+      - name: Reject vulnerabilities and unexpected maintenance warnings
+        run: .github/scripts/cargo-audit.sh --file "${{ matrix.lockfile }}"
+
+  gitleaks:
+    name: Secret gate for the exact revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Native GitHub secret scanning remains the full-history provider-aware
+      # control. A one-commit checkout keeps this generic gate deterministic and
+      # prevents inherited synthetic examples in upstream history from masking
+      # a real secret introduced by the exact revision under review.
+      - name: Check out the exact commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Reject committed secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

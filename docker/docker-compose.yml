@@ -1,14 +1,51 @@
+# Purpose: Unraid/Broker-friendly runtime stack for RuView's Rust sensing server.
+# Input: Docker builds from the repository root and optional CSI_SOURCE/MODELS_DIR
+#        environment values supplied by the operator.
+# Output: One long-running HTTP/WebSocket/UDP sensing service. The legacy Python
+#         WebSocket service is available only when the "python" profile is enabled.
+# Invariants/debugging:
+#   - Host ports must not collide with existing Unraid containers.
+#   - ESP32 CSI UDP stays on host port 5005 so sensor firmware does not need a
+#     deployment-specific target-port change.
+#   - Logs are bounded; inspect them through the Unraid Deployment Broker first.
+
 services:
   sensing-server:
     build:
       context: ..
       dockerfile: docker/Dockerfile.rust
     image: ruvnet/wifi-densepose:latest
-    # ESP32 CSI must accept LAN UDP; TCP APIs below remain loopback-only.
-    # kics-scan ignore-line
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 2g
+    cpus: 2.0
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:3000/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
-      - "127.0.0.1:3000:3000"   # REST API
-      - "127.0.0.1:3001:3001"   # WebSocket
+      # Host ports 3000 and 8080 are commonly used on Unraid. Use the 830x
+      # range so this stack can run beside Gotenberg, SecondBrain, and other apps.
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:8300:3000"   # Set an explicit LAN IP for hardware use
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:8301:3001"   # WebSocket
       # ESP32 UDP. On Linux/macOS this works with multiple ESP32 nodes out of
       # the box. On Docker Desktop for Windows, multi-source UDP is collapsed
       # to one source IP at the WSL/Hyper-V boundary, so all-but-one node's
@@ -20,61 +57,63 @@ services:
       #   python scripts/udp-relay.py --listen-port 5005 --forward-port 5006
       #
       # See docs/TROUBLESHOOTING.md §9 for details.
-      - "5005:5005/udp"
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:5005:5005/udp"
     environment:
       - RUST_LOG=info
       # CSI_SOURCE controls the data source for the sensing server.
-      # Options: auto (default) — probe for ESP32 UDP then host WiFi; **fail
-      #                           hard with exit 78 if neither is detected**.
-      #                           Synthetic data is no longer a silent fallback
-      #                           (issue #937 fix) — operators must opt in.
+      # Options: auto (default) — probe for ESP32 UDP and host Wi-Fi; fail
+      #                           explicitly when neither source is available
       #          esp32          — receive real CSI frames from an ESP32 on UDP port 5005
       #          wifi           — use host Wi-Fi RSSI/scan data (Windows netsh)
-      #          simulated      — explicitly generate synthetic CSI for demo mode
+      #          simulated      — explicitly generate synthetic CSI data
       - CSI_SOURCE=${CSI_SOURCE:-auto}
       # MODELS_DIR controls where the server scans for .rvf model files.
       # Mount a host directory and set this to make models visible:
       #   volumes: ["/path/to/models:/app/models"]
       #   MODELS_DIR=/app/models
       - MODELS_DIR=${MODELS_DIR:-data/models}
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 1G
-    healthcheck:
-      test: ["CMD-SHELL", "kill -0 1"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
     # No explicit command needed — docker-entrypoint.sh uses CSI_SOURCE.
     # Override with: command: ["--source", "esp32", "--tick-ms", "500"]
 
   python-sensing:
+    profiles:
+      - python
     build:
       context: ..
       dockerfile: docker/Dockerfile.python
     image: ruvnet/wifi-densepose:python
-    ports:
-      - "127.0.0.1:8765:8765"   # WebSocket
-      - "127.0.0.1:8080:8080"   # UI
-    environment:
-      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    mem_limit: 2g
+    cpus: 2.0
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 512M
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8765), 2).close()"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)"
       interval: 30s
-      timeout: 3s
+      timeout: 5s
       retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:8765:8765"   # WebSocket
+      - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:8302:8080"   # UI, if a Python UI server is enabled later
+    environment:
+      - PYTHONUNBUFFERED=1

@@ -108,7 +108,7 @@ When the server is unreachable, the app automatically falls back to **simulation
 
 ### Directory Structure
 
-```
+```text
 ui/mobile/
   App.tsx                          Root component (providers, navigation, services)
   app.config.ts                    Expo configuration
@@ -118,7 +118,6 @@ ui/mobile/
       ConnectionBanner.tsx         Server status banner (connected/simulated/disconnected)
       ErrorBoundary.tsx            Crash boundary with fallback UI
       GaugeArc.tsx                 SVG arc gauge for vital sign display
-      HudOverlay.tsx               Heads-up display overlay
       LoadingSpinner.tsx           Themed loading indicator
       ModeBadge.tsx                LIVE / SIM / RSSI mode indicator
       OccupancyGrid.tsx            Grid-based occupancy visualization
@@ -136,7 +135,6 @@ ui/mobile/
       useRssiScanner.ts            Platform RSSI scanning hook
       useServerReachability.ts     HTTP health check polling
       useTheme.ts                  Dark/light/system theme resolution
-      useWebViewBridge.ts          WebView message bridge for Gaussian viewer
     navigation/
       MainTabs.tsx                 Bottom tab navigator (5 tabs with lazy loading)
       RootNavigator.tsx            Root stack navigator
@@ -204,7 +202,7 @@ ui/mobile/
 
 ### Data Flow
 
-```
+```text
 WiFi Sensing Server (Rust/Axum)
        |
        | WebSocket (ws://host:3001/ws/sensing)
@@ -260,6 +258,7 @@ Mass Casualty Assessment Tool for disaster response. Displays a survivor counter
 ### Settings
 
 Configuration panel with four controls:
+
 - **Server URL** — text input with URL validation; changes trigger WebSocket reconnect
 - **Theme** — dark / light / system picker
 - **RSSI Scanning** — toggle for platform-native WiFi RSSI scanning
@@ -297,6 +296,7 @@ interface SensingFrame {
 ```
 
 The WebSocket service (`ws.service.ts`) handles:
+
 - Automatic reconnection with exponential backoff (1s, 2s, 4s, 8s, 16s)
 - Fallback to simulation after max reconnect attempts
 - Protocol upgrade (`http:` to `ws:`, `https:` to `wss:`)
@@ -331,7 +331,7 @@ Runs the Jest test suite via `jest-expo`. Tests cover:
 
 | Category | Files | What Is Tested |
 |----------|-------|----------------|
-| Components | 7 | `ConnectionBanner`, `GaugeArc`, `HudOverlay`, `OccupancyGrid`, `SignalBar`, `SparklineChart`, `StatusDot` |
+| Components | 6 | `ConnectionBanner`, `GaugeArc`, `OccupancyGrid`, `SignalBar`, `SparklineChart`, `StatusDot` |
 | Screens | 5 | `LiveScreen`, `VitalsScreen`, `ZonesScreen`, `MATScreen`, `SettingsScreen` |
 | Services | 4 | `ws.service`, `api.service`, `rssi.service`, `simulation.service` |
 | Stores | 3 | `poseStore`, `matStore`, `settingsStore` |
@@ -341,8 +341,12 @@ Runs the Jest test suite via `jest-expo`. Tests cover:
 ### End-to-End Tests (Maestro)
 
 ```bash
-# Install Maestro CLI
-curl -Ls https://get.maestro.mobile.dev | bash
+# macOS: install the Maestro CLI from its official Homebrew tap.
+brew tap mobile-dev-inc/tap
+brew install mobile-dev-inc/tap/maestro
+
+# Linux/Windows: follow the platform-specific verified installation guide:
+# https://docs.maestro.dev/maestro-cli/how-to-install-maestro-cli
 
 # Run all e2e specs
 maestro test e2e/
@@ -391,6 +395,7 @@ Maestro YAML specs cover each screen:
 6. Submit a pull request
 
 Follow the project's existing patterns:
+
 - Components go in `src/components/`
 - Screen-specific components go in `src/screens/<ScreenName>/`
 - Platform-specific files use the `.android.ts` / `.ios.ts` / `.web.ts` suffix convention

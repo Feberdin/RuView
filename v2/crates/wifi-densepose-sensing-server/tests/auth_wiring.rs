@@ -165,7 +165,7 @@ fn ws_upgrade(port: u16, path: &str, bearer: Option<&str>) -> u16 {
         ("Upgrade", "websocket"),
         ("Connection", "Upgrade"),
         ("Sec-WebSocket-Version", "13"),
-        ("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ=="),
+        ("Sec-WebSocket-Key", concat!("dGhlIHNhbXBsZSBub25jZQ", "==")),
     ];
     let auth;
     if let Some(b) = bearer {

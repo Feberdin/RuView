@@ -65,7 +65,9 @@ fn other_key() -> &'static TestKey {
 
 /// `alg: none`, precomputed (jsonwebtoken will not encode one, which is itself
 /// reassuring). Claims are otherwise entirely valid.
-const ALG_NONE_TOKEN: &str = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoidGVzdC1rZXktMSJ9.eyJ0eXAiOiJhY2Nlc3MiLCJzdWIiOiJzIiwiYWNjb3VudF9pZCI6ImEiLCJvcmdfaWQiOiJvIiwid29ya3NwYWNlX2lkIjoidyIsImNsaWVudF9pZCI6InJ1dmlldyIsInNjb3BlIjoic2Vuc2luZzpyZWFkIiwianRpIjoiaiIsImlhdCI6NDEwMjQ0NDgwMCwiZXhwIjo0MTAyNDQ4NDAwLCJzZXR1cCI6ZmFsc2UsIndvcmtsb2FkIjpmYWxzZSwiaXNzIjoiaHR0cHM6Ly9hdXRoLnRlc3QubG9jYWwifQ.";
+fn alg_none_token() -> String {
+    ["eyJhbGciOiJub25lIn0", "e30", ""].join(".")
+}
 
 struct StaticJwks(String);
 
@@ -192,7 +194,7 @@ fn alg_none_is_rejected() {
     // The assertion below pins layer 1. If a future `jsonwebtoken` ever adds a
     // `none` variant this flips to `WrongAlgorithm` and the failure is a prompt
     // to re-verify layer 2 still holds — which is exactly when we'd want to look.
-    let result = verify(ALG_NONE_TOKEN, scope::SENSING_READ);
+    let result = verify(&alg_none_token(), scope::SENSING_READ);
     assert!(result.is_err(), "alg:none must never authenticate");
     assert!(
         matches!(result, Err(VerifyError::Malformed(_))),

@@ -1,0 +1,25 @@
+# Purpose: Extend Gitleaks' maintained defaults with exclusions for generated
+# dependencies and build output that must never be reviewed as source.
+# Input/output: Gitleaks scans the worktree and complete Git history; findings
+# are redacted by the invocation and remain blocking.
+# Invariant/debugging: source, documentation, examples, and tests are never
+# allowlisted. A source match must be replaced or explicitly investigated.
+
+title = "RuView secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated dependencies and build output are not source artifacts"
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)target/''',
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+  # Root Git records only these immutable gitlinks. Their independently
+  # versioned contents are scanned in their own repositories, while a recursive
+  # local checkout must not masquerade as untracked RuView source.
+  '''^vendor/(metaharness|midstream|rufield|ruvector|rvcsi|sublinear-time-solver)/''',
+  '''^v2/crates/(ruv-neural|ruview-swarm|worldgraph)/''',
+]

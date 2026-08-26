@@ -264,6 +264,10 @@ v1/src/sensing/mac_wifi
 # Node modules (should use npm ci, not committed)
 **/node_modules/
 
+# Vite dependency pre-bundles are machine-specific build caches. They can
+# contain stale dependency code and must be recreated with `npm ci`.
+**/.vite/
+
 # Local build scripts
 firmware/esp32-csi-node/build_firmware.batdata/
 models/

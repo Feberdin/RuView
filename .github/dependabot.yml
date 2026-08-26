@@ -1,58 +1,75 @@
+# Purpose: Keep every lockfile-owning package family in this monorepo under
+# automated, reviewable dependency maintenance.
+# Input/output: Dependabot reads manifests from the listed directories and
+# opens pull requests; it never receives application secrets from this file.
+# Invariant/debugging: when a tracked lockfile is added, add its directory here
+# and to dependency-security.yml in the same pull request.
+
 version: 2
 updates:
-  # Keep all third-party GitHub Actions on verified, pinned commit SHAs.
-  # Pairs with the SHA pinning in security-scan.yml and ci.yml so that
-  # future bumps stay automated and reviewable rather than drifting back
-  # to mutable @master / @main refs. See issue #442.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - github-actions
-
-  # Mobile app npm deps. Includes the @xmldom/xmldom, node-forge, and
-  # picomatch advisories from #442 plus axios and any future surface.
-  - package-ecosystem: npm
-    directory: /ui/mobile
-    schedule:
-      interval: weekly
     open-pull-requests-limit: 10
-    labels:
-      - dependencies
-      - mobile
+    labels: [dependencies, github-actions]
 
-  # Desktop UI npm deps. Direct vite devDep currently has a HIGH advisory
-  # (dev-server-only path traversal); track future bumps automatically.
   - package-ecosystem: npm
-    directory: /v2/crates/wifi-densepose-desktop/ui
+    directories:
+      - /dashboard
+      - /examples/frontend
+      - /harness/homecore
+      - /harness/ruview
+      - /integrations/iphone-lidar/web
+      - /tools/ruview-cli
+      - /tools/ruview-mcp
+      - /ui/mobile
+      - /v2/crates/wifi-densepose-desktop/ui
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - desktop
+    open-pull-requests-limit: 20
+    labels: [dependencies, javascript]
+    groups:
+      same-dependency-across-packages:
+        group-by: dependency-name
 
-  # Python deps used by v1/ and the FastAPI service. requirements.txt is
-  # only loosely pinned; let Dependabot surface upstream CVE bumps.
-  - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    labels:
-      - dependencies
-      - python
-
-  # Rust workspace (15+ crates). cargo audit is not currently wired into
-  # any workflow, so Dependabot is the primary automated bump path.
   - package-ecosystem: cargo
-    directory: /v2
+    directories:
+      - /python
+      - /v2
+      - /v2/crates/homecore-plugin-example
+      - /v2/crates/wifi-densepose-physics/fuzz
+      - /v2/crates/wifi-densepose-wasm-edge
+      - /v2/patches/ruvector-crv
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 20
+    labels: [dependencies, rust]
+    groups:
+      same-dependency-across-lockfiles:
+        group-by: dependency-name
+
+  - package-ecosystem: pip
+    directories:
+      - /
+      - /aether-arena/space
+      - /archive/v1
+      - /python
+      - /python/ruview-meta
+      - /python/tombstone
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 15
+    labels: [dependencies, python]
+    groups:
+      same-dependency-across-projects:
+        group-by: dependency-name
+
+  - package-ecosystem: docker
+    directories:
+      - /docker
+      - /v2/crates/nvsim-server
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
-    labels:
-      - dependencies
-      - rust
+    labels: [dependencies, docker]

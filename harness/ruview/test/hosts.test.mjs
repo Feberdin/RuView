@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runClaudeCode, buildClaudeCodeArgs } from '../src/hosts/claude-code.js';
@@ -9,7 +9,10 @@ import { runProcess, scrubEnvironment } from '../src/process-runner.js';
 import { redact } from '../src/redact.js';
 import { assertTrustedRuViewRepo } from '../src/repo-trust.js';
 function fixture() {
-  const dir = mkdtempSync(join(tmpdir(), 'ruview-hosts-'));
+  // macOS exposes /var through /private/var. The production trust boundary
+  // canonicalizes paths, so the fixture must assert against the same physical
+  // directory rather than a platform-specific symlink spelling.
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'ruview-hosts-')));
   mkdirSync(join(dir, '.git')); mkdirSync(join(dir, 'v2')); mkdirSync(join(dir, 'firmware'));
   writeFileSync(join(dir, 'README.md'), '# RuView\nWiFi DensePose repository\n');
   const cli = join(dir, 'fake-cli.mjs');

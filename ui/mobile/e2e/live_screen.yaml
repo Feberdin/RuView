@@ -1,0 +1,9 @@
+appId: com.ruvnet.wifidensepose
+name: Live screen renders its status overlay
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Live"
+- assertVisible: "WiFi-DensePose"
+- assertVisible: "RSSI"
+- assertVisible: "Confidence"
