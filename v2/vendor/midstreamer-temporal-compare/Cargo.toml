@@ -1,0 +1,28 @@
+# Purpose: build the pinned Midstream temporal-comparison source with a safe
+# LRU implementation without copying or diverging from the upstream source.
+# Input/output: the source from vendor/midstream; the same public 0.2.1 crate.
+# Invariants: the parent repository pins the submodule commit, and lru remains
+# at 0.18.2 or newer. Debug with `cargo test -p midstreamer-temporal-compare`.
+
+[package]
+name = "midstreamer-temporal-compare"
+version = "0.2.1"
+edition = "2021"
+rust-version = "1.88"
+description = "Temporal sequence comparison and pattern matching"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ruvnet/midstream"
+
+[lib]
+name = "midstreamer_temporal_compare"
+path = "../../../vendor/midstream/crates/temporal-compare/src/lib.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+dashmap = "6.1"
+lru = "0.18.2"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1"

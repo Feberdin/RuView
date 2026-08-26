@@ -123,6 +123,8 @@ members = [
     # ADR-324 — clean-room Kooima off-axis (head-coupled perspective) projection.
     # Dependency-free native core; wasm-bindgen surface only on wasm32.
     "crates/ruview-offaxis",
+    # Security-only manifest overlay for the pinned Midstream submodule source.
+    "vendor/midstreamer-temporal-compare",
 ]
 # ADR-040: WASM edge crate targets wasm32-unknown-unknown (no_std),
 # excluded from workspace to avoid breaking `cargo test --workspace`.
@@ -135,6 +137,10 @@ exclude = [
     "crates/wifi-densepose-wasm-edge",
     "crates/homecore-plugin-example",
     "crates/worldgraph",   # ruvnet/worldgraph submodule — its own workspace (geo/worldgraph/worldmodel)
+    # Standalone compatibility patch with its own committed lockfile. Keeping
+    # it outside the main workspace makes its audit and dependency updates
+    # reproducible instead of failing with Cargo's nested-workspace error.
+    "patches/ruvector-crv",
 ]
 
 [workspace.package]
@@ -294,3 +300,10 @@ strip = false
 [profile.bench]
 inherits = "release"
 debug = true
+
+# The pinned Midstream submodule supplies the reviewed 0.2.1 implementation,
+# while this small overlay manifest lifts only its LRU dependency to the first
+# release containing both RustSec memory-safety fixes. Remove the overlay once
+# the published midstreamer-temporal-compare crate requires lru >= 0.18.2.
+[patch.crates-io]
+midstreamer-temporal-compare = { path = "vendor/midstreamer-temporal-compare" }

@@ -1,3 +1,5 @@
+import { WS_PATH } from '@/constants/websocket';
+
 // We test the WsService class by importing a fresh instance.
 // We need to mock the poseStore to prevent side effects.
 jest.mock('@/stores/poseStore', () => ({
@@ -69,7 +71,7 @@ describe('WsService', () => {
 
         // Test with port 3000
         ws.connect('http://192.168.1.10:3000');
-        expect(capturedUrls[capturedUrls.length - 1]).toBe('ws://192.168.1.10:3000/ws/sensing');
+        expect(capturedUrls[capturedUrls.length - 1]).toBe(`ws://192.168.1.10:3000${WS_PATH}`);
 
         // Clean up, create another service
         ws.disconnect();
@@ -77,19 +79,19 @@ describe('WsService', () => {
 
         // Test with port 8080
         ws2.connect('http://myserver.local:8080');
-        expect(capturedUrls[capturedUrls.length - 1]).toBe('ws://myserver.local:8080/ws/sensing');
+        expect(capturedUrls[capturedUrls.length - 1]).toBe(`ws://myserver.local:8080${WS_PATH}`);
         ws2.disconnect();
 
         // Test HTTPS -> WSS upgrade (port 443 is default for HTTPS so host drops it)
         const ws3 = createWsService();
         ws3.connect('https://secure.example.com:443');
-        expect(capturedUrls[capturedUrls.length - 1]).toBe('wss://secure.example.com/ws/sensing');
+        expect(capturedUrls[capturedUrls.length - 1]).toBe(`wss://secure.example.com${WS_PATH}`);
         ws3.disconnect();
 
         // Test WSS input
         const ws4 = createWsService();
         ws4.connect('wss://secure.example.com');
-        expect(capturedUrls[capturedUrls.length - 1]).toBe('wss://secure.example.com/ws/sensing');
+        expect(capturedUrls[capturedUrls.length - 1]).toBe(`wss://secure.example.com${WS_PATH}`);
         ws4.disconnect();
 
         // Verify port 3001 is NOT hardcoded anywhere

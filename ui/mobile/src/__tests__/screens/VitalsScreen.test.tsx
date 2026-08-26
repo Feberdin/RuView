@@ -64,6 +64,11 @@ describe('VitalsScreen', () => {
   });
 
   it('renders the connection banner', () => {
+    // VitalsScreen renders connection state from the central pose store; the
+    // mocked hook only suppresses transport side effects.
+    const { usePoseStore } = require('@/stores/poseStore');
+    usePoseStore.setState({ connectionStatus: 'simulated', isSimulated: true });
+
     const VitalsScreen = require('@/screens/VitalsScreen').default;
     render(
       <ThemeProvider>
