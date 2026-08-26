@@ -110,6 +110,12 @@ treated as compromised and rotated before any history decision.
   secret findings on pull requests, `main`, and a weekly schedule.
 - `.gitleaks.toml` extends maintained defaults and excludes only generated
   output plus exact root submodule working trees.
+- KICS suppressions are limited to the two `RUVIEW_API_TOKEN` lines whose
+  values are runtime references, never credentials. Semgrep inline suppressions
+  cover only reviewed preprocessor-exclusive cleanup and shell-free execution
+  of the operator-selected ESP-IDF SDK. Only those exact four suppressed SARIF
+  findings are removed before GitHub upload so they cannot reopen false-positive
+  alerts; every unsuppressed or newly suppressed result is preserved.
 - `SECURITY.md` defines private reporting, rotation, scanning, privacy, and
   dependency-exception rules.
 - `CONTRIBUTING.md` defines safe upstream synchronization and exact-commit CI

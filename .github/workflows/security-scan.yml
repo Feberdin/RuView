@@ -109,12 +109,38 @@ jobs:
           python/ scripts/ firmware/esp32-csi-node/ aether-arena/
       continue-on-error: true
 
+    - name: Remove reviewed inline suppressions from upload
+      run: |
+        # Semgrep correctly marks `nosemgrep` findings as in-source suppressed,
+        # but still writes them into SARIF. GitHub otherwise opens alerts for
+        # those already-reviewed false positives. Keep every unsuppressed result.
+        test -f semgrep.sarif
+        jq '
+          def uri: .locations[0].physicalLocation.artifactLocation.uri;
+          def reviewed_suppression:
+            (((.suppressions // []) | length) > 0) and
+            (
+              (
+                .ruleId == "python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args" and
+                (uri == "scripts/provision.py" or
+                 uri == "scripts/generate_nvs_matrix.py" or
+                 uri == "firmware/esp32-csi-node/provision.py")
+              ) or
+              (
+                .ruleId == "c.lang.security.double-free.double-free" and
+                uri == "firmware/esp32-csi-node/main/wasm_upload.c"
+              )
+            );
+          (.runs[].results) |= map(select(reviewed_suppression | not))
+        ' semgrep.sarif > semgrep-upload.sarif
+        test -s semgrep-upload.sarif
+
     - name: Upload Semgrep results to GitHub Security
       continue-on-error: true
       uses: github/codeql-action/upload-sarif@a2983b8bed1923f44751c5c43237f479442827b3 # v3
       if: always()
       with:
-        sarif_file: semgrep.sarif
+        sarif_file: semgrep-upload.sarif
         category: semgrep
 
   # Dependency vulnerability scanning

@@ -49,6 +49,8 @@ services:
       - "192.168.57.10:8301:3001"   # WebSocket
       - "192.168.57.10:5005:5005/udp"   # ESP32 CSI UDP input
     environment:
+      # KICS false positive: the Broker URI injects a value only at deployment.
+      # kics-scan ignore-line
       RUVIEW_API_TOKEN: secret://RUVIEW_API_TOKEN
       RUST_LOG: ${RUST_LOG:-info,sensing_server=debug}
       # Use esp32 by default on Unraid so hardware debugging keeps the UDP

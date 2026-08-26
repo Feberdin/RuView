@@ -204,7 +204,8 @@ jobs:
           test "$code" = "401" || { echo "expected 401, got $code"; exit 1; }
           # Wrong bearer → 401.
           auth_header='Authorization: Bearer'
-          code=$(curl -s -o /dev/null -w '%{http_code}' -H "${auth_header} ${RUVIEW_INVALID_TEST_TOKEN:-intentionally-invalid}" http://127.0.0.1:3000/api/v1/info)
+          wrong_credential='intentionally-invalid'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "${auth_header} ${wrong_credential}" http://127.0.0.1:3000/api/v1/info)
           test "$code" = "401" || { echo "expected 401 (wrong token), got $code"; exit 1; }
           # Correct bearer → 200.
           curl -fsS -H "${auth_header} ${expected_token}" http://127.0.0.1:3000/api/v1/info >/dev/null
