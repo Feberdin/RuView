@@ -53,6 +53,15 @@ Lockfiles and compatible dependencies were updated. The Python binding uses
 PyO3 0.29, and both the main workspace and standalone binding use the reviewed
 `midstreamer-temporal-compare` overlay selecting `lru` 0.18.2.
 
+GitHub indexed five additional Rust findings after the synchronized tree was
+first pushed: `jsonwebtoken` below 10.3.0 (two manifests plus the lockfile),
+`serde_with` below 3.21.0, and `tar` through 0.4.45. The lockfile now resolves
+`jsonwebtoken` 10.4.0 with its explicitly selected `aws_lc_rs` provider,
+`serde_with` 3.21.0, and `tar` 0.4.46. The alternative `rust_crypto` provider
+was rejected because its RSA 0.9 dependency has RUSTSEC-2023-0071 with no fixed
+release. All 25 verifier-matrix tests and all 62 sensing-server bearer-auth
+tests pass with the selected provider. No new audit exception was introduced.
+
 Tauri's supported GTK3 stack still requires GLib 0.18.5. The exact crates.io
 source is vendored with the upstream `VariantStrIter` undefined-behaviour fix;
 license, source provenance, delta, and removal criteria are in
@@ -101,6 +110,12 @@ treated as compromised and rotated before any history decision.
   secret findings on pull requests, `main`, and a weekly schedule.
 - `.gitleaks.toml` extends maintained defaults and excludes only generated
   output plus exact root submodule working trees.
+- KICS suppressions are limited to the two `RUVIEW_API_TOKEN` lines whose
+  values are runtime references, never credentials. Semgrep inline suppressions
+  cover only reviewed preprocessor-exclusive cleanup and shell-free execution
+  of the operator-selected ESP-IDF SDK. Only those exact four suppressed SARIF
+  findings are removed before GitHub upload so they cannot reopen false-positive
+  alerts; every unsuppressed or newly suppressed result is preserved.
 - `SECURITY.md` defines private reporting, rotation, scanning, privacy, and
   dependency-exception rules.
 - `CONTRIBUTING.md` defines safe upstream synchronization and exact-commit CI
