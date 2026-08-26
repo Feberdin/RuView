@@ -158,7 +158,7 @@ proptest = { version = "1.5", default-features = false, features = ["std"] }
 # ADR-271 — sign real ES256 tokens so the middleware's OAuth path is exercised
 # end to end (router → middleware → verifier), not just mocked at the seam.
 # Keys are generated at test runtime; none are committed.
-jsonwebtoken = "9"
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
 base64 = "0.21"
 

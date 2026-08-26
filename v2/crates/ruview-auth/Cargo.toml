@@ -6,10 +6,12 @@ description = "Cognitum OAuth access-token verification for RuView (ADR-271)"
 publish = false
 
 [dependencies]
-# Same major as the service that ISSUES these tokens
-# (cognitum-one/dashboard `services/identity`, workspace `jsonwebtoken = "9"`).
-# Signature math is delegated to this crate; nothing here hand-rolls crypto.
-jsonwebtoken = "9"
+# Version 10.3.0 closes GHSA-h395-gr6q-cpjc. Version 10 requires exactly one
+# crypto provider; `aws_lc_rs` is selected deliberately because `rust_crypto`
+# currently pulls RSA 0.9 with RUSTSEC-2023-0071 and no fixed release. The
+# verifier independently pins ES256 before decoding and still delegates all
+# signature math to this crate.
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 
 # `ureq`, not `reqwest`: `wifi-densepose-sensing-server` — the first consumer —
 # deliberately chose ureq as "the smallest" HTTP client (see its Cargo.toml).
@@ -51,7 +53,7 @@ login = ["pkce", "dep:reqwest", "dep:tokio", "dep:url", "dep:libc"]
 [dev-dependencies]
 # Test-only: sign real ES256 tokens so the negative matrix exercises the same
 # code path production does, rather than asserting against hand-built strings.
-jsonwebtoken = "9"
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 serde_json = { workspace = true }
 
 # Keypairs are GENERATED AT TEST RUNTIME, never committed. A checked-in
