@@ -6,7 +6,7 @@
 # Run:
 #   docker run --rm -p 7878:7878 nvsim-server:latest
 
-FROM rust:1.81-slim-bookworm@sha256:f9fb6bdb0483de4ade93b262a3f6cf8c2985fca1d34784914bbcabd5a34d3197 AS builder
+FROM rust:1.94-slim-bookworm@sha256:cf9dd0ec73e75f827fe59123fff9dc65af1a1c8363c3c31ee8d7f8ad0b6a5fb2 AS builder
 WORKDIR /build
 # Debian security revisions intentionally float within the immutable base
 # snapshot so rebuilds receive patched packages without brittle version pins.
@@ -28,7 +28,7 @@ resolver = "2"
 members = ["crates/nvsim", "crates/nvsim-server"]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["rUv <ruv@ruv.net>"]
 license = "MIT OR Apache-2.0"

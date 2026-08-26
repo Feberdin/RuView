@@ -13,7 +13,7 @@
 //!
 //! `wifi-densepose-vitals` has zero tokio deps and the extract loops
 //! are pure-sync DSP. Wrap the `.extract(...)` calls in
-//! `py.allow_threads(|| ...)` so Python users can run inference in a
+//! `py.detach(|| ...)` so Python users can run inference in a
 //! tokio-backed web server without GIL contention starving the
 //! event loop.
 

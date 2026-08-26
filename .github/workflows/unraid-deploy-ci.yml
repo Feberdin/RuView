@@ -92,6 +92,7 @@ jobs:
           docker run --detach \
             --name "${container_name}" \
             --env CSI_SOURCE=simulated \
+            --env RUVIEW_ALLOW_UNAUTHENTICATED=1 \
             --publish 127.0.0.1:8300:3000 \
             "ruview-unraid-ci:${GITHUB_SHA}"
 

@@ -132,7 +132,9 @@ RuView turns ordinary WiFi into a contactless sensor. A $9 ESP32 board reads the
 ```bash
 # Option 1: Docker (simulated data, no hardware needed)
 docker pull ruvnet/wifi-densepose:latest
-docker run -p 3000:3000 -e CSI_SOURCE=simulated \
+docker run -p 127.0.0.1:3000:3000 \
+  -e CSI_SOURCE=simulated \
+  -e RUVIEW_ALLOW_UNAUTHENTICATED=1 \
   ruvnet/wifi-densepose:latest
 # Open http://localhost:3000
 
@@ -195,8 +197,9 @@ docker compose --project-directory . \
 Deployment is performed only through the Feberdin Unraid Deployment Broker:
 `stack_validate` → `deploy_plan` → plan-bound approval when required →
 `deploy_apply` → status, health, and redacted log checks. Do not run direct
-remote Docker or SSH commands. Optional credentials must use Broker-managed
-`secret://NAME` references and must never be baked into an image.
+remote Docker or SSH commands. The required `RUVIEW_API_TOKEN` is referenced as
+`secret://RUVIEW_API_TOKEN`; its value must be entered through the Broker secret
+flow and must never be baked into an image.
 
 </details>
 

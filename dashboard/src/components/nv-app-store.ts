@@ -98,6 +98,7 @@ export class NvAppStore extends LitElement {
       width: 7px; height: 7px; border-radius: 50%;
     }
     .chip .count { color: var(--ink-3); font-size: 10px; }
+    .chip.on .count { color: var(--ink-2); }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -149,7 +150,7 @@ export class NvAppStore extends LitElement {
     .badge.budget { color: var(--accent-2); border-color: oklch(0.78 0.12 195 / 0.3); }
     .badge.rt-running { color: var(--ok); border-color: oklch(0.78 0.14 145 / 0.5); background: oklch(0.78 0.14 145 / 0.08); }
     .badge.rt-simulated { color: var(--accent); border-color: oklch(0.78 0.14 70 / 0.5); background: oklch(0.78 0.14 70 / 0.08); }
-    .badge.rt-mesh-only { color: var(--ink-3); border-color: var(--line); }
+    .badge.rt-mesh-only { color: var(--ink-2); border-color: var(--line); }
     .events-feed {
       background: var(--bg-2);
       border: 1px solid var(--line);
@@ -207,6 +208,7 @@ export class NvAppStore extends LitElement {
       border-radius: 999px; cursor: pointer;
       transition: background 0.15s;
       flex-shrink: 0;
+      padding: 0;
     }
     .toggle::after {
       content: ''; position: absolute;
@@ -287,29 +289,36 @@ export class NvAppStore extends LitElement {
           App Store
           <small>${APPS.length} edge apps · ${activeCount} active</small>
         </div>
-        <input class="search" id="app-search" placeholder="Search by name, tag, or category…"
+        <input class="search" id="app-search" aria-label="Search apps"
+          placeholder="Search by name, tag, or category…"
           .value=${query.value}
           @input=${(e: Event) => { query.value = (e.target as HTMLInputElement).value; }} />
       </div>
 
       <div class="filters">
-        <span class="chip ${activeCat.value === 'all' ? 'on' : ''}"
+        <button type="button" class="chip ${activeCat.value === 'all' ? 'on' : ''}"
+          aria-pressed=${activeCat.value === 'all'}
           @click=${() => activeCat.value = 'all'}>
           All<span class="count">${counts.all}</span>
-        </span>
+        </button>
         ${(Object.keys(CATEGORIES) as AppCategory[]).map((k) => html`
-          <span class="chip ${activeCat.value === k ? 'on' : ''}"
+          <button type="button" class="chip ${activeCat.value === k ? 'on' : ''}"
+            aria-pressed=${activeCat.value === k}
             @click=${() => activeCat.value = k}>
             <span class="swatch" style=${`background:${CATEGORIES[k].color}`}></span>
             ${CATEGORIES[k].label}
             <span class="count">${counts[k] ?? 0}</span>
-          </span>
+          </button>
         `)}
         <span style="flex:1; min-width:8px"></span>
-        <span class="chip ${statusFilter.value === 'all' ? 'on' : ''}" @click=${() => statusFilter.value = 'all'}>any</span>
-        <span class="chip ${statusFilter.value === 'available' ? 'on' : ''}" @click=${() => statusFilter.value = 'available'}>available</span>
-        <span class="chip ${statusFilter.value === 'beta' ? 'on' : ''}" @click=${() => statusFilter.value = 'beta'}>beta</span>
-        <span class="chip ${statusFilter.value === 'research' ? 'on' : ''}" @click=${() => statusFilter.value = 'research'}>research</span>
+        <button type="button" class="chip ${statusFilter.value === 'all' ? 'on' : ''}"
+          aria-pressed=${statusFilter.value === 'all'} @click=${() => statusFilter.value = 'all'}>any</button>
+        <button type="button" class="chip ${statusFilter.value === 'available' ? 'on' : ''}"
+          aria-pressed=${statusFilter.value === 'available'} @click=${() => statusFilter.value = 'available'}>available</button>
+        <button type="button" class="chip ${statusFilter.value === 'beta' ? 'on' : ''}"
+          aria-pressed=${statusFilter.value === 'beta'} @click=${() => statusFilter.value = 'beta'}>beta</button>
+        <button type="button" class="chip ${statusFilter.value === 'research' ? 'on' : ''}"
+          aria-pressed=${statusFilter.value === 'research'} @click=${() => statusFilter.value = 'research'}>research</button>
       </div>
 
       ${this.renderEventsFeed()}
@@ -388,10 +397,11 @@ export class NvAppStore extends LitElement {
         <div class="card-foot">
           <span class="events">${app.crate}</span>
           ${evCount > 0 ? html`<span class="card-events-count">⚡ ${evCount} ev</span>` : ''}
-          <span class="toggle ${active ? 'on' : ''}" role="switch"
+          <button type="button" class="toggle ${active ? 'on' : ''}" role="switch"
             aria-checked=${active}
+            aria-label=${`${active ? 'Deactivate' : 'Activate'} ${app.name}`}
             data-app-toggle=${app.id}
-            @click=${() => this.toggle(app)}></span>
+            @click=${() => this.toggle(app)}></button>
         </div>
       </div>
     `;

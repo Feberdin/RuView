@@ -39,7 +39,7 @@ use wifi_densepose_mat::{
 // ─── DisasterType ────────────────────────────────────────────────────
 
 /// Type of disaster event (shapes the debris/attenuation model).
-#[pyclass(eq, eq_int, frozen, hash, name = "DisasterType")]
+#[pyclass(eq, eq_int, frozen, from_py_object, hash, name = "DisasterType")]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PyDisasterType {
     BuildingCollapse = 0,
@@ -79,7 +79,7 @@ impl PyDisasterType {
 // ─── TriageStatus ────────────────────────────────────────────────────
 
 /// START-protocol triage class.
-#[pyclass(eq, eq_int, frozen, hash, name = "TriageStatus")]
+#[pyclass(eq, eq_int, frozen, from_py_object, hash, name = "TriageStatus")]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PyTriageStatus {
     Immediate = 0,
@@ -237,7 +237,7 @@ impl PySurvivor {
 ///
 /// Note: the Python binding always runs **single-shot** scans (`scan_once`),
 /// so `continuous_monitoring` is forced off internally.
-#[pyclass(frozen, name = "DisasterConfig")]
+#[pyclass(frozen, from_py_object, name = "DisasterConfig")]
 #[derive(Clone)]
 pub struct PyDisasterConfig {
     inner: DisasterConfig,
@@ -298,7 +298,7 @@ impl PyDisasterConfig {
 // ─── ScanZone ────────────────────────────────────────────────────────
 
 /// A rectangular or circular scan zone (new zones start Active).
-#[pyclass(name = "ScanZone")]
+#[pyclass(from_py_object, name = "ScanZone")]
 #[derive(Clone)]
 pub struct PyScanZone {
     inner: ScanZone,
@@ -380,7 +380,7 @@ impl PyDisasterResponse {
         amplitudes: Vec<f64>,
         phases: Vec<f64>,
     ) -> PyResult<()> {
-        py.allow_threads(|| self.inner.push_csi_data(&amplitudes, &phases))
+        py.detach(|| self.inner.push_csi_data(&amplitudes, &phases))
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
@@ -390,7 +390,7 @@ impl PyDisasterResponse {
     fn scan_once(&mut self, py: Python<'_>) -> PyResult<()> {
         let rt = &self.rt;
         let inner = &mut self.inner;
-        py.allow_threads(|| rt.block_on(inner.start_scanning()))
+        py.detach(|| rt.block_on(inner.start_scanning()))
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 

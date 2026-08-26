@@ -412,18 +412,22 @@ export class NvInspector extends LitElement {
 
   override render() {
     return html`
-      <div class="tabs" role="tablist">
+      <div class="tabs" role="tablist" aria-label="Inspector views">
         <button class="tab ${this.tab === 'signal' ? 'active' : ''}" data-pane="signal"
-          role="tab" aria-selected=${this.tab === 'signal'}
+          id="inspector-tab-signal" role="tab" aria-selected=${this.tab === 'signal'}
+          aria-controls="inspector-panel"
           @click=${() => this.tab = 'signal'}>Signal</button>
         <button class="tab ${this.tab === 'frame' ? 'active' : ''}" data-pane="frame"
-          role="tab" aria-selected=${this.tab === 'frame'}
+          id="inspector-tab-frame" role="tab" aria-selected=${this.tab === 'frame'}
+          aria-controls="inspector-panel"
           @click=${() => this.tab = 'frame'}>Frame</button>
         <button class="tab ${this.tab === 'witness' ? 'active' : ''}" data-pane="witness"
-          role="tab" aria-selected=${this.tab === 'witness'}
+          id="inspector-tab-witness" role="tab" aria-selected=${this.tab === 'witness'}
+          aria-controls="inspector-panel"
           @click=${() => this.tab = 'witness'}>Witness</button>
       </div>
-      <div class="body" role="tabpanel">
+      <div class="body" id="inspector-panel" role="tabpanel" tabindex="0"
+        aria-labelledby=${`inspector-tab-${this.tab}`}>
         ${this.renderHeader()}
         ${this.tab === 'signal' ? this.renderSignalTab()
           : this.tab === 'frame' ? this.renderFrameTab()

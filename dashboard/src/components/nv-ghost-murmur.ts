@@ -391,7 +391,7 @@ export class NvGhostMurmur extends LitElement {
           <div>
             <div class="control">
               <div class="top">
-                <span class="lbl">Distance from sensor</span>
+                <label class="lbl" for="demo-distance">Distance from sensor</label>
                 <span class="val" id="demo-dist-val">${this.formatDistance(this.distanceM)}</span>
               </div>
               <input type="range" id="demo-distance"
@@ -404,7 +404,7 @@ export class NvGhostMurmur extends LitElement {
             </div>
             <div class="control">
               <div class="top">
-                <span class="lbl">Heart dipole moment</span>
+                <label class="lbl" for="demo-moment">Heart dipole moment</label>
                 <span class="val" id="demo-moment-val">${m.toExponential(2)} A·m²</span>
               </div>
               <input type="range" id="demo-moment"
@@ -536,7 +536,8 @@ export class NvGhostMurmur extends LitElement {
       </div>
 
       <h2>RuView's three-tier mesh — what is actually buildable</h2>
-      <div class="architecture">                      ┌──────────────────────────┐
+      <div class="architecture" tabindex="0" role="region"
+        aria-label="RuView three-tier mesh architecture">                      ┌──────────────────────────┐
                       │   Tier 3 — NV-diamond    │  Range: 0.1–2 m (lab)
                       │     magnetometer ring    │  Status: nvsim simulator only
                       │     (close-confirm)      │  Hardware: $$$ (≥$8k DNV-B1)

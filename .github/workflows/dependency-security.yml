@@ -119,11 +119,13 @@ jobs:
     timeout-minutes: 10
     steps:
       # Native GitHub secret scanning remains the full-history provider-aware
-      # control. A one-commit checkout keeps this generic gate deterministic and
-      # prevents inherited synthetic examples in upstream history from masking
-      # a real secret introduced by the exact revision under review.
+      # control. Gitleaks derives the pushed commit range from the event; the
+      # complete Git graph is therefore required even though only that range is
+      # scanned. Without it, merge pushes fail before scanning any bytes.
       - name: Check out the exact commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
 
       - name: Reject committed secrets
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2

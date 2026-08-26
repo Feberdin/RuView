@@ -60,6 +60,9 @@ services:
       - "${RUVIEW_BIND_ADDRESS:-127.0.0.1}:5005:5005/udp"
     environment:
       - RUST_LOG=info
+      # Required because the container listens on all interfaces internally.
+      # Put the value in an ignored local .env file; never commit it.
+      - RUVIEW_API_TOKEN=${RUVIEW_API_TOKEN:?Set RUVIEW_API_TOKEN before starting this stack}
       # CSI_SOURCE controls the data source for the sensing server.
       # Options: auto (default) — probe for ESP32 UDP and host Wi-Fi; fail
       #                           explicitly when neither source is available

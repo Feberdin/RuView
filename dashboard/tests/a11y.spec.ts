@@ -15,13 +15,21 @@ test.describe('axe-core a11y smoke', () => {
   for (const view of VIEWS) {
     test(`view: ${view}`, async ({ page }) => {
       await page.goto('/');
-      // Dismiss the welcome modal if it auto-shows.
+      // The first-run decision is asynchronous because it comes from
+      // IndexedDB. Wait for the modal before dismissing it so axe never scans
+      // a half-faded transition or obscured dashboard by accident.
+      await page.waitForFunction(() => {
+        const sr = (document.querySelector('nv-app') as HTMLElement & { shadowRoot: ShadowRoot } | null)?.shadowRoot;
+        return sr?.querySelector('nv-onboarding')?.hasAttribute('open') === true;
+      });
       await page.evaluate(() => {
         const sr = (document.querySelector('nv-app') as HTMLElement & { shadowRoot: ShadowRoot }).shadowRoot;
         const ob = sr.querySelector('nv-onboarding') as HTMLElement | null;
-        if (ob?.hasAttribute('open')) {
-          (ob.shadowRoot?.querySelector('.skip') as HTMLElement | null)?.click();
-        }
+        (ob?.shadowRoot?.querySelector('.skip') as HTMLElement | null)?.click();
+      });
+      await page.waitForFunction(() => {
+        const sr = (document.querySelector('nv-app') as HTMLElement & { shadowRoot: ShadowRoot } | null)?.shadowRoot;
+        return sr?.querySelector('nv-onboarding')?.hasAttribute('open') === false;
       });
       // Navigate to the view via the rail button (except for home which is default).
       if (view !== 'home') {

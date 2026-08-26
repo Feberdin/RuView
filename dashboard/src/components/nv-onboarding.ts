@@ -185,9 +185,10 @@ export class NvOnboarding extends LitElement {
       z-index: 240;
       display: grid; place-items: center;
       opacity: 0; pointer-events: none;
+      visibility: hidden;
       transition: opacity 0.18s;
     }
-    :host([open]) { opacity: 1; pointer-events: auto; }
+    :host([open]) { opacity: 1; pointer-events: auto; visibility: visible; }
     .card {
       background: var(--bg-1);
       border: 1px solid var(--line-2);
